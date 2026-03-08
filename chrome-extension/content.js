@@ -1,9 +1,9 @@
-// PM Tracker — content script
+// Job Arc — content script
 // Runs on linkedin.com/jobs/view/* pages
 
 (function () {
   // Avoid duplicate injection on SPA navigations
-  if (document.getElementById('pm-tracker-btn')) return
+  if (document.getElementById('job-arc-btn')) return
 
   function extractJob() {
     // Primary source: document.title = "Lead PM - CoPilot | Pocket FM | LinkedIn"
@@ -44,7 +44,7 @@
         if (tabs && tabs.length > 0) {
           chrome.scripting.executeScript({
             target: { tabId: tabs[0].id },
-            func: () => { localStorage.setItem('pm_tracker_ext_heartbeat', 'true') },
+            func: () => { localStorage.setItem('job_arc_ext_heartbeat', 'true') },
           }).catch(() => {})
         }
       })
@@ -53,8 +53,8 @@
 
   function createButton() {
     const btn = document.createElement('button')
-    btn.id = 'pm-tracker-btn'
-    btn.innerText = '📌 Add to PM Tracker'
+    btn.id = 'job-arc-btn'
+    btn.innerText = '📌 Add to Job Arc'
     Object.assign(btn.style, {
       position: 'fixed',
       bottom: '28px',
@@ -88,7 +88,7 @@
       const job = extractJob()
       if (!job.title || !job.company) {
         btn.innerText = '⚠ Could not extract job'
-        setTimeout(() => { btn.innerText = '📌 Add to PM Tracker' }, 2000)
+        setTimeout(() => { btn.innerText = '📌 Add to Job Arc' }, 2000)
         return
       }
 
@@ -102,18 +102,18 @@
           btn.style.color = '#39FF14'
           btn.style.background = 'rgba(5,5,5,0.96)'
           setTimeout(() => {
-            btn.innerText = '📌 Add to PM Tracker'
+            btn.innerText = '📌 Add to Job Arc'
             btn.style.borderColor = '#F5A623'
             btn.style.color = '#F5A623'
             btn.disabled = false
           }, 2500)
         } else {
-          btn.innerText = '✗ Failed — is pm-tracker open?'
+          btn.innerText = '✗ Failed — is job-arc open?'
           btn.style.borderColor = '#FF4444'
           btn.style.color = '#FF4444'
           btn.disabled = false
           setTimeout(() => {
-            btn.innerText = '📌 Add to PM Tracker'
+            btn.innerText = '📌 Add to Job Arc'
             btn.style.borderColor = '#F5A623'
             btn.style.color = '#F5A623'
           }, 3000)
@@ -126,7 +126,7 @@
 
   // Inject button once page has settled (LinkedIn SPA can be slow)
   function init() {
-    if (document.getElementById('pm-tracker-btn')) return
+    if (document.getElementById('job-arc-btn')) return
     document.body.appendChild(createButton())
     setHeartbeat()
   }
@@ -143,7 +143,7 @@
   const observer = new MutationObserver(() => {
     if (location.href !== lastUrl) {
       lastUrl = location.href
-      const old = document.getElementById('pm-tracker-btn')
+      const old = document.getElementById('job-arc-btn')
       if (old) old.remove()
       if (location.href.includes('/jobs/view/')) {
         setTimeout(init, 1200)

@@ -6,7 +6,7 @@ export default function Header({ tab, setTab, onAdd, onSettings, onScan, scannin
   const scanAge = lastScan ? getDaysAgo(lastScan.slice(0,10)) : null
   const [extActive, setExtActive] = useState(false)
   useEffect(() => {
-    const check = () => setExtActive(localStorage.getItem('pm_tracker_ext_heartbeat') === 'true')
+    const check = () => setExtActive(localStorage.getItem('job_arc_ext_heartbeat') === 'true')
     check()
     const id = setInterval(check, 3000)
     return () => clearInterval(id)
@@ -95,7 +95,7 @@ export default function Header({ tab, setTab, onAdd, onSettings, onScan, scannin
             + Add Role
           </button>
 
-          <div title={extActive ? 'PM Tracker Extension active' : 'PM Tracker Extension not detected'} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'default' }}>
+          <div title={extActive ? 'Job Arc Extension active' : 'Job Arc Extension not detected'} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'default' }}>
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: extActive ? '#39FF14' : 'var(--border)', boxShadow: extActive ? '0 0 6px #39FF14' : 'none', transition: 'all 0.4s ease' }} />
             {extActive && <span className="mono" style={{ fontSize: 8, color: 'var(--green)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ext</span>}
           </div>

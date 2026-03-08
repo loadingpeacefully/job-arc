@@ -1,11 +1,11 @@
-// PM Tracker — background service worker
+// Job Arc — background service worker
 
 const PM_TRACKER_URL = 'http://localhost:3000/'
 
 function injectJob(job) {
-  // This runs inside the pm-tracker tab's context
-  localStorage.setItem('pm_tracker_incoming', JSON.stringify(job))
-  window.dispatchEvent(new CustomEvent('pm_tracker_job', { detail: job }))
+  // This runs inside the job-arc tab's context
+  localStorage.setItem('job_arc_incoming', JSON.stringify(job))
+  window.dispatchEvent(new CustomEvent('job_arc_job', { detail: job }))
 }
 
 async function findPmTrackerTab() {
@@ -47,7 +47,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           func: injectJob,
           args: [job],
         })
-        // Focus the pm-tracker tab so user can see the confirmation
+        // Focus the job-arc tab so user can see the confirmation
         await chrome.tabs.update(tab.id, { active: true })
         await chrome.windows.update(tab.windowId, { focused: true })
         sendResponse({ ok: true })
@@ -57,7 +57,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok })
       }
     } catch (err) {
-      console.error('PM Tracker background error:', err)
+      console.error('Job Arc background error:', err)
       sendResponse({ ok: false, error: err.message })
     }
   })()

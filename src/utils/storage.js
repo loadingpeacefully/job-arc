@@ -1,9 +1,9 @@
 import { SEED_JOBS } from '../constants'
 
 const KEYS = {
-  JOBS: 'pmtracker_jobs',
-  SETTINGS: 'pmtracker_settings',
-  LAST_SCAN: 'pmtracker_last_scan',
+  JOBS: 'jobarc_jobs',
+  SETTINGS: 'jobarc_settings',
+  LAST_SCAN: 'jobarc_last_scan',
 }
 
 export function loadJobs() {
@@ -45,7 +45,7 @@ export function exportData() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `pm-tracker-backup-${new Date().toISOString().slice(0,10)}.json`
+  a.download = `job-arc-backup-${new Date().toISOString().slice(0,10)}.json`
   a.click()
   URL.revokeObjectURL(url)
 }

@@ -1,4 +1,4 @@
-const SESSION_KEY = 'pm_tracker_session'
+const SESSION_KEY = 'job_arc_session'
 const SESSION_TOKEN = 'pmt_auth_v1_ok'
 
 // Credentials (personal tool — not security-critical)

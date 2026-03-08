@@ -4,7 +4,7 @@ import { newJob } from './jobUtils'
 export const LINKEDIN_SCRAPER_SNIPPET = `(function() {
   var cards = document.querySelectorAll('a[data-view-name="opportunity-tracker-job-details"]');
   if (!cards.length) {
-    console.warn('PM Tracker: No job cards found. Make sure you are on linkedin.com/jobs-tracker/ and scroll down to load all cards first.');
+    console.warn('Job Arc: No job cards found. Make sure you are on linkedin.com/jobs-tracker/ and scroll down to load all cards first.');
     return;
   }
   var jobs = []; var seen = new Set();
@@ -23,8 +23,8 @@ export const LINKEDIN_SCRAPER_SNIPPET = `(function() {
       jobs.push({ title: title, company: company, location: location, jobUrl: jobUrl });
     } catch(e) {}
   });
-  if (!jobs.length) { console.warn('PM Tracker: Cards found but no data extracted.'); return; }
-  console.log('PM Tracker: ' + jobs.length + ' jobs found. Copy the JSON below and paste into pm-tracker Settings -> LinkedIn -> Import Jobs:');
+  if (!jobs.length) { console.warn('Job Arc: Cards found but no data extracted.'); return; }
+  console.log('Job Arc: ' + jobs.length + ' jobs found. Copy the JSON below and paste into job-arc Settings -> LinkedIn -> Import Jobs:');
   console.log(JSON.stringify(jobs));
 })();`
 
@@ -32,7 +32,7 @@ export const LINKEDIN_SCRAPER_SNIPPET = `(function() {
 export const LINKEDIN_SINGLE_JOB_SNIPPET = `(function() {
   var url = window.location.href.split('?')[0];
   if (!url.includes('/jobs/view/')) {
-    console.warn('PM Tracker: Open a specific LinkedIn job page (linkedin.com/jobs/view/XXXXX/) first.');
+    console.warn('Job Arc: Open a specific LinkedIn job page (linkedin.com/jobs/view/XXXXX/) first.');
     return;
   }
   var title = (document.querySelector('h1') || {}).innerText;
@@ -48,11 +48,11 @@ export const LINKEDIN_SINGLE_JOB_SNIPPET = `(function() {
   var locationEl = document.querySelector('.job-details-jobs-unified-top-card__bullet, [class*="workplace-type"], [class*="location"]');
   var location = locationEl ? locationEl.innerText.trim() : '';
   if (!title || !company) {
-    console.warn('PM Tracker: Could not extract title/company. Page may not be loaded yet.');
+    console.warn('Job Arc: Could not extract title/company. Page may not be loaded yet.');
     return;
   }
   var job = { title: title, company: company, location: location, jobUrl: url };
-  console.log('PM Tracker: Job extracted. Copy the JSON below and paste into pm-tracker Settings -> LinkedIn -> Import Jobs:');
+  console.log('Job Arc: Job extracted. Copy the JSON below and paste into job-arc Settings -> LinkedIn -> Import Jobs:');
   console.log(JSON.stringify([job]));
 })();`
 

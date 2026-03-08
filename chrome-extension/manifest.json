@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PM Tracker",
+  "name": "Job Arc",
   "version": "1.0",
-  "description": "Add LinkedIn jobs to PM Tracker in one click",
+  "description": "Add LinkedIn jobs to Job Arc in one click",
   "permissions": ["activeTab", "scripting", "tabs", "storage"],
   "host_permissions": [
     "https://www.linkedin.com/jobs/view/*",

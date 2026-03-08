@@ -33,10 +33,10 @@ export default function App({ onLogout }) {
   useEffect(() => {
     function handler(e) {
       const job = e.detail || (() => {
-        try { return JSON.parse(localStorage.getItem('pm_tracker_incoming') || 'null') } catch { return null }
+        try { return JSON.parse(localStorage.getItem('job_arc_incoming') || 'null') } catch { return null }
       })()
       if (!job || !job.title || !job.company) return
-      localStorage.removeItem('pm_tracker_incoming')
+      localStorage.removeItem('job_arc_incoming')
       setJobs(prev => {
         const incoming = [newJob({ company: job.company, role: job.title, location: job.location || '', jd_url: job.jobUrl || '', source: 'LinkedIn Extension', status: 'Saved' })]
         const { merged } = mergeJobs(prev, incoming)
@@ -44,8 +44,8 @@ export default function App({ onLogout }) {
       })
       setScanMsg({ type: 'success', text: `✅ "${job.title}" at ${job.company} added from LinkedIn.` })
     }
-    window.addEventListener('pm_tracker_job', handler)
-    return () => window.removeEventListener('pm_tracker_job', handler)
+    window.addEventListener('job_arc_job', handler)
+    return () => window.removeEventListener('job_arc_job', handler)
   }, [])
 
   const selectedJob = jobs.find(j => j.id === selectedId) || null
