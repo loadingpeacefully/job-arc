@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { loadJobs, saveJobs, loadSettings, saveSettings, loadLastScan, saveLastScan, exportData, importData } from './utils/storage'
+import { loadJobs, upsertJob, deleteJobDB, upsertManyJobs, loadSettings, saveSettings, loadLastScan, saveLastScan, exportData, importData } from './utils/storage'
 import { runLiveScan, mergeJobs, verifyJob } from './utils/claudeApi'
 import { newJob } from './utils/jobUtils'
 import Header from './components/Header'
@@ -12,9 +12,12 @@ import AddJobModal from './components/AddJobModal'
 import SettingsModal from './components/SettingsModal'
 import ScanBanner from './components/ScanBanner'
 
+const DEFAULT_SETTINGS = { apiKey: '', userName: '', targetRole: 'Senior Product Manager', minSalary: 40 }
+
 export default function App({ onLogout }) {
-  const [jobs, setJobs] = useState(() => loadJobs())
-  const [settings, setSettings] = useState(() => loadSettings())
+  const [jobs, setJobs] = useState([])
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('board')
   const [selectedId, setSelectedId] = useState(null)
   const [filterStatus, setFilterStatus] = useState('All')
@@ -26,10 +29,16 @@ export default function App({ onLogout }) {
   const [lastScan, setLastScan] = useState(() => loadLastScan())
   const [verifyingId, setVerifyingId] = useState(null)
 
-  // Persist jobs on change
-  useEffect(() => { saveJobs(jobs) }, [jobs])
+  // Load data from Supabase on mount
+  useEffect(() => {
+    Promise.all([loadJobs(), loadSettings()]).then(([j, s]) => {
+      setJobs(j)
+      setSettings(s)
+      setLoading(false)
+    })
+  }, [])
 
-  // Chrome extension bridge — listens for jobs pushed from the LinkedIn extension
+  // Chrome extension bridge
   useEffect(() => {
     function handler(e) {
       const job = e.detail || (() => {
@@ -40,6 +49,7 @@ export default function App({ onLogout }) {
       setJobs(prev => {
         const incoming = [newJob({ company: job.company, role: job.title, location: job.location || '', jd_url: job.jobUrl || '', source: 'LinkedIn Extension', status: 'Saved' })]
         const { merged } = mergeJobs(prev, incoming)
+        upsertManyJobs(incoming)
         return merged
       })
       setScanMsg({ type: 'success', text: `✅ "${job.title}" at ${job.company} added from LinkedIn.` })
@@ -51,23 +61,33 @@ export default function App({ onLogout }) {
   const selectedJob = jobs.find(j => j.id === selectedId) || null
 
   const updateJob = useCallback((id, updates) => {
-    setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updates, lastUpdated: new Date().toISOString().slice(0,10) } : j))
+    setJobs(prev => {
+      const updated = prev.map(j => {
+        if (j.id !== id) return j
+        const newJ = { ...j, ...updates, lastUpdated: new Date().toISOString().slice(0, 10) }
+        upsertJob(newJ)
+        return newJ
+      })
+      return updated
+    })
   }, [])
 
   const deleteJob = useCallback((id) => {
+    deleteJobDB(id)
     setJobs(prev => prev.filter(j => j.id !== id))
     setSelectedId(null)
   }, [])
 
   const addJob = useCallback((jobData) => {
     const job = newJob(jobData)
+    upsertJob(job)
     setJobs(prev => [job, ...prev])
     setSelectedId(job.id)
     setShowAdd(false)
   }, [])
 
-  const handleSaveSettings = useCallback((s) => {
-    saveSettings(s)
+  const handleSaveSettings = useCallback(async (s) => {
+    await saveSettings(s)
     setSettings(s)
     setShowSettings(false)
   }, [])
@@ -82,6 +102,7 @@ export default function App({ onLogout }) {
     try {
       const incoming = await runLiveScan(settings.apiKey)
       const { merged, added } = mergeJobs(jobs, incoming)
+      await upsertManyJobs(incoming)
       setJobs(merged)
       const now = new Date().toISOString()
       saveLastScan(now)
@@ -125,6 +146,7 @@ export default function App({ onLogout }) {
 
   const handleLinkedInPaste = useCallback((parsed) => {
     const { merged, added } = mergeJobs(jobs, parsed)
+    upsertManyJobs(parsed)
     setJobs(merged)
     setScanMsg({ type: 'success', text: `${added} new role${added !== 1 ? 's' : ''} imported from LinkedIn (${parsed.length} found).` })
     setShowSettings(false)
@@ -151,6 +173,14 @@ export default function App({ onLogout }) {
       (j.notes || '').toLowerCase().includes(q)
     return matchStatus && matchSearch
   })
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span className="mono" style={{ color: 'var(--muted)', fontSize: 12, letterSpacing: '0.1em' }}>Loading…</span>
+      </div>
+    )
+  }
 
   return (
     <div className="grid-bg" style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
@@ -225,7 +255,7 @@ export default function App({ onLogout }) {
           settings={settings}
           onSave={handleSaveSettings}
           onClose={() => setShowSettings(false)}
-          onExport={exportData}
+          onExport={() => exportData(jobs, settings)}
           onImport={handleImport}
           onLinkedInPaste={handleLinkedInPaste}
         />

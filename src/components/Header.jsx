@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getDaysAgo } from '../utils/jobUtils'
 import { clearSession } from '../utils/auth'
 
-export default function Header({ tab, setTab, onAdd, onSettings, onScan, scanning, lastScan, jobCount, onLogout }) {
+export default function Header({ tab, setTab, onAdd, onScan, scanning, lastScan, onLogout }) {
   const scanAge = lastScan ? getDaysAgo(lastScan.slice(0,10)) : null
   const [extActive, setExtActive] = useState(false)
   useEffect(() => {
@@ -99,25 +99,18 @@ export default function Header({ tab, setTab, onAdd, onSettings, onScan, scannin
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: extActive ? '#39FF14' : 'var(--border)', boxShadow: extActive ? '0 0 6px #39FF14' : 'none', transition: 'all 0.4s ease' }} />
             {extActive && <span className="mono" style={{ fontSize: 8, color: 'var(--green)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ext</span>}
           </div>
-          <button onClick={onSettings} style={{
-            width: 32, height: 32,
-            border: '1px solid rgba(255,255,255,0.1)',
-            background: 'transparent', color: 'var(--muted)', fontSize: 14,
-          }}>⚙</button>
-
           <button
             onClick={() => { clearSession(); onLogout() }}
             className="mono"
-            title="Logout"
             style={{
-              width: 32, height: 32,
+              padding: '6px 12px',
               border: '1px solid rgba(255,255,255,0.1)',
-              background: 'transparent', color: 'var(--muted)', fontSize: 13,
-              letterSpacing: 0,
+              background: 'transparent', color: 'var(--muted)', fontSize: 10,
+              fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,80,80,0.4)'; e.currentTarget.style.color = '#FF5555' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'var(--muted)' }}
-          >↩</button>
+          >Logout</button>
         </div>
       </div>
 

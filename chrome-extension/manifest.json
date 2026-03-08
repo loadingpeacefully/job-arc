@@ -6,7 +6,8 @@
   "permissions": ["activeTab", "scripting", "tabs", "storage"],
   "host_permissions": [
     "https://www.linkedin.com/jobs/view/*",
-    "http://localhost:3000/*"
+    "http://localhost:3000/*",
+    "https://jobs-arc.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"

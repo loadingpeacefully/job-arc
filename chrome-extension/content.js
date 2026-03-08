@@ -40,7 +40,7 @@
   function setHeartbeat() {
     // Tell pm-tracker the extension is active
     try {
-      chrome.tabs.query({ url: 'http://localhost:3000/*' }, (tabs) => {
+      chrome.tabs.query({ url: ['http://localhost:3000/*', 'https://jobs-arc.vercel.app/*'] }, (tabs) => {
         if (tabs && tabs.length > 0) {
           chrome.scripting.executeScript({
             target: { tabId: tabs[0].id },

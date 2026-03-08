@@ -1,63 +1,89 @@
+import { supabase } from './supabase'
 import { SEED_JOBS } from '../constants'
 
-const KEYS = {
-  JOBS: 'jobarc_jobs',
-  SETTINGS: 'jobarc_settings',
-  LAST_SCAN: 'jobarc_last_scan',
+// ── JOBS ──────────────────────────────────────────────────────────────────────
+
+export async function loadJobs() {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('data')
+    .order('updated_at', { ascending: false })
+  if (error || !data?.length) return SEED_JOBS
+  return data.map(row => row.data)
 }
 
-export function loadJobs() {
-  try {
-    const raw = localStorage.getItem(KEYS.JOBS)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return SEED_JOBS
+export async function upsertJob(job) {
+  await supabase.from('jobs').upsert({
+    id: job.id,
+    data: job,
+    updated_at: new Date().toISOString(),
+  })
 }
 
-export function saveJobs(jobs) {
-  localStorage.setItem(KEYS.JOBS, JSON.stringify(jobs))
+export async function deleteJobDB(id) {
+  await supabase.from('jobs').delete().eq('id', id)
 }
 
-export function loadSettings() {
-  try {
-    const raw = localStorage.getItem(KEYS.SETTINGS)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return { apiKey: '', userName: '', targetRole: 'Senior Product Manager', minSalary: 40 }
+export async function upsertManyJobs(jobs) {
+  if (!jobs.length) return
+  const rows = jobs.map(j => ({ id: j.id, data: j, updated_at: new Date().toISOString() }))
+  await supabase.from('jobs').upsert(rows)
 }
 
-export function saveSettings(settings) {
-  localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings))
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+
+const DEFAULT_SETTINGS = { apiKey: '', userName: '', targetRole: 'Senior Product Manager', minSalary: 40 }
+
+export async function loadSettings() {
+  const { data } = await supabase
+    .from('settings')
+    .select('data')
+    .eq('id', 'singleton')
+    .single()
+  return data?.data ?? DEFAULT_SETTINGS
 }
+
+export async function saveSettings(settings) {
+  await supabase.from('settings').upsert({
+    id: 'singleton',
+    data: settings,
+    updated_at: new Date().toISOString(),
+  })
+}
+
+// ── LAST SCAN (kept in localStorage — trivial) ────────────────────────────────
 
 export function loadLastScan() {
-  return localStorage.getItem(KEYS.LAST_SCAN) || null
+  return localStorage.getItem('jobarc_last_scan') || null
 }
 
 export function saveLastScan(iso) {
-  localStorage.setItem(KEYS.LAST_SCAN, iso)
+  localStorage.setItem('jobarc_last_scan', iso)
 }
 
-export function exportData() {
-  const jobs = loadJobs()
-  const settings = loadSettings()
-  const blob = new Blob([JSON.stringify({ jobs, settings, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' })
+// ── EXPORT / IMPORT ───────────────────────────────────────────────────────────
+
+export function exportData(jobs, settings) {
+  const blob = new Blob(
+    [JSON.stringify({ jobs, settings, exportedAt: new Date().toISOString() }, null, 2)],
+    { type: 'application/json' }
+  )
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `job-arc-backup-${new Date().toISOString().slice(0,10)}.json`
+  a.download = `job-arc-backup-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
 
-export function importData(file) {
+export async function importData(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = JSON.parse(e.target.result)
-        if (data.jobs) saveJobs(data.jobs)
-        if (data.settings) saveSettings(data.settings)
+        if (data.jobs) await upsertManyJobs(data.jobs)
+        if (data.settings) await saveSettings(data.settings)
         resolve(data)
       } catch (err) {
         reject(err)

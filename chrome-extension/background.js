@@ -1,6 +1,7 @@
 // Job Arc — background service worker
 
-const PM_TRACKER_URL = 'http://localhost:3000/'
+const APP_URLS = ['http://localhost:3000/', 'https://jobs-arc.vercel.app/']
+const PM_TRACKER_URL = APP_URLS[1]
 
 function injectJob(job) {
   // This runs inside the job-arc tab's context
@@ -9,8 +10,11 @@ function injectJob(job) {
 }
 
 async function findPmTrackerTab() {
-  const tabs = await chrome.tabs.query({ url: 'http://localhost:3000/*' })
-  return tabs[0] || null
+  for (const url of APP_URLS) {
+    const tabs = await chrome.tabs.query({ url: url + '*' })
+    if (tabs[0]) return tabs[0]
+  }
+  return null
 }
 
 async function openPmTrackerAndInject(job) {
