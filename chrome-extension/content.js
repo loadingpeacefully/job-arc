@@ -49,10 +49,12 @@
     )
     if (dateEl) postedDate = dateEl.innerText.trim()
 
-    // Full job description — try multiple selectors in order of specificity
+    // Full job description — search within right panel only to avoid left sidebar
     let description = ''
     let description_html = ''
     const descSelectors = [
+      '.scaffold-layout__detail .jobs-description',
+      '[class*="jobs-search__job-details"] .jobs-description',
       '.jobs-description',
       '#job-details',
       '[class*="jobs-description__container"]',
@@ -62,8 +64,6 @@
       '.jobs-box__html-content',
       '[class*="jobs-box"]',
       'article[class*="jobs"]',
-      '.scaffold-layout__detail article',
-      '[class*="job-view-layout"] section',
     ]
     for (const sel of descSelectors) {
       const el = document.querySelector(sel)
@@ -82,10 +82,14 @@
         if (section) description = section.innerText.replace(aboutHeading.innerText, '').trim()
       }
     }
-    // Nuclear fallback: find the smallest div/section/article with 1000-15000 chars that isn't nav
-    // Minimum 1000 chars excludes LinkedIn's applicant stats sidebar (~400 chars)
+    // Nuclear fallback: search ONLY within the right panel (detail view), not the full page
+    // This prevents picking up LinkedIn's left sidebar job results list
     if (!description) {
-      const candidate = [...document.querySelectorAll('div, section, article')]
+      const detailPanel = document.querySelector(
+        '.scaffold-layout__detail, [class*="jobs-search__job-details--wrapper"], [class*="jobs-search__job-details"]'
+      )
+      const searchRoot = detailPanel || document.body
+      const candidate = [...searchRoot.querySelectorAll('div, section, article')]
         .filter(el => {
           const t = (el.innerText || '').trim()
           return t.length >= 1000 && t.length <= 15000 && !el.querySelector('nav, header')
@@ -204,6 +208,7 @@
       // Wait 2s for LinkedIn to render the lazy-loaded description, then extract and send
       setTimeout(() => {
         const extracted = extractJob()
+        console.log('[Job Arc] Extracted:', JSON.stringify({ desc: extracted.description?.slice(0, 200), skills: extracted.skills, insights: extracted.insights }, null, 2))
         chrome.runtime.sendMessage({ type: 'ADD_JOB', job: extracted }, (response) => {
           if (response && response.ok) {
             btn.innerText = '✓ Added!'
