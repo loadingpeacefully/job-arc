@@ -32,7 +32,7 @@ export async function upsertManyJobs(jobs) {
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_SETTINGS = { apiKey: '', userName: '', targetRole: 'Senior Product Manager', minSalary: 40 }
+const DEFAULT_SETTINGS = { apiKey: '', userName: '', bio: '', linkedinUrl: '', githubUrl: '', profileImage: '' }
 const API_KEY_STORAGE_KEY = 'jobarc_api_key'
 
 export async function loadSettings() {

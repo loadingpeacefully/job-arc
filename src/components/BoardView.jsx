@@ -2,20 +2,13 @@ import { STATUS } from '../constants'
 import { statusCounts } from '../utils/jobUtils'
 import JobCard from './JobCard'
 
-export default function BoardView({ jobs, allJobs, selectedId, onSelect, filterStatus, onFilterStatus, searchQ, onSearch, onAdd }) {
+export default function BoardView({ jobs, allJobs, selectedId, onSelect, filterStatus, onFilterStatus, onAdd }) {
   const counts = statusCounts(allJobs)
 
   return (
     <div>
       {/* Filters row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <input
-          value={searchQ}
-          onChange={e => onSearch(e.target.value)}
-          placeholder="/ search company, role, tag…"
-          style={{ padding: '7px 12px', width: 240 }}
-        />
-
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           <FilterChip label={`All · ${allJobs.length}`} active={filterStatus === 'All'} onClick={() => onFilterStatus('All')} color="var(--muted)" />
           {Object.entries(STATUS).map(([s, cfg]) => (

@@ -21,7 +21,6 @@ export default function App({ onLogout }) {
   const [tab, setTab] = useState('board')
   const [selectedId, setSelectedId] = useState(null)
   const [filterStatus, setFilterStatus] = useState('All')
-  const [searchQ, setSearchQ] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -180,6 +179,8 @@ export default function App({ onLogout }) {
         salary_verified: result.salary_verified || '',
         salary_source: result.salary_source || '',
         salary_confirmed: result.salary_confirmed || false,
+        // Always update salary_band from verified data (range; exact only if 90%+ confident)
+        ...(result.salary_verified ? { salary_band: result.salary_verified } : {}),
       })
       const salaryNote = result.salary_verified ? ` · Salary: ${result.salary_verified} (${result.salary_source})` : ''
       setScanMsg({
@@ -214,16 +215,9 @@ export default function App({ onLogout }) {
     }
   }, [])
 
-  const filteredJobs = jobs.filter(j => {
-    const matchStatus = filterStatus === 'All' || j.status === filterStatus
-    const q = searchQ.toLowerCase()
-    const matchSearch = !q ||
-      j.company.toLowerCase().includes(q) ||
-      j.role.toLowerCase().includes(q) ||
-      (j.tags || []).some(t => t.toLowerCase().includes(q)) ||
-      (j.notes || '').toLowerCase().includes(q)
-    return matchStatus && matchSearch
-  })
+  const filteredJobs = jobs.filter(j =>
+    filterStatus === 'All' || j.status === filterStatus
+  )
 
   if (loading) {
     return (
@@ -261,8 +255,6 @@ export default function App({ onLogout }) {
               onSelect={setSelectedId}
               filterStatus={filterStatus}
               onFilterStatus={setFilterStatus}
-              searchQ={searchQ}
-              onSearch={setSearchQ}
               onAdd={() => setShowAdd(true)}
             />
           )}
@@ -306,9 +298,6 @@ export default function App({ onLogout }) {
           settings={settings}
           onSave={handleSaveSettings}
           onClose={() => setShowSettings(false)}
-          onExport={() => exportData(jobs, settings)}
-          onImport={handleImport}
-          onLinkedInPaste={handleLinkedInPaste}
         />
       )}
     </div>

@@ -187,8 +187,7 @@ function OverviewTab({ local, set, onVerify, verifying }) {
           {LEVELS.map(l => <option key={l}>{l}</option>)}
         </select>
       </Field>
-      <Field label="JD URL"><TextInput value={local.jd_url} onChange={v => set('jd_url', v)} placeholder="https://…" mono /></Field>
-      <Field label="Salary Band"><TextInput value={local.salary_band} onChange={v => set('salary_band', v)} placeholder="e.g. 60–90 LPA" mono /></Field>
+      <Field label="Salary Band"><TextInput value={local.salary_band} onChange={v => set('salary_band', v)} placeholder="Populated from Verify, or enter manually" mono /></Field>
       <Field label="Tags (comma-separated)">
         <TextInput value={(local.tags || []).join(', ')} onChange={v => set('tags', v.split(',').map(s => s.trim()).filter(Boolean))} placeholder="Fintech, B2B, Growth" />
       </Field>
