@@ -52,49 +52,81 @@
     // Full job description — search within right panel only to avoid left sidebar
     let description = ''
     let description_html = ''
+
+    // Helper: returns true if text looks like a job list (left sidebar), not a single JD
+    function isJobList(t) {
+      const postedCount = (t.match(/posted on/gi) || []).length
+      const activelyCount = (t.match(/actively reviewing/gi) || []).length
+      return postedCount >= 2 || activelyCount >= 2
+    }
+
     const descSelectors = [
+      // Right panel — most specific first
+      '.scaffold-layout__detail .jobs-description__content',
       '.scaffold-layout__detail .jobs-description',
+      '.jobs-search__job-details--detail-view .jobs-description',
+      '[class*="jobs-search__job-details--wrapper"] .jobs-description',
       '[class*="jobs-search__job-details"] .jobs-description',
-      '.jobs-description',
+      // Standalone job view (linkedin.com/jobs/view/)
       '#job-details',
+      '.jobs-description__content',
+      '.jobs-description',
       '[class*="jobs-description__container"]',
       '[class*="jobs-description__content"]',
       '[class*="jobs-description-content"]',
       '[class*="description__text"]',
       '.jobs-box__html-content',
-      '[class*="jobs-box"]',
-      'article[class*="jobs"]',
     ]
     for (const sel of descSelectors) {
       const el = document.querySelector(sel)
-      if (el && el.innerText && el.innerText.trim().length > 50) {
-        description = el.innerText.trim()
+      const t = el ? el.innerText.trim() : ''
+      if (t.length > 50 && !isJobList(t)) {
+        description = t
         description_html = el.innerHTML
         break
       }
     }
-    // Last resort: find heading then grab parent section
+    // Heading-based fallback
     if (!description) {
       const headings = [...document.querySelectorAll('h2, h3')]
       const aboutHeading = headings.find(h => /about the job|job description|about this role/i.test(h.innerText))
       if (aboutHeading) {
         const section = aboutHeading.closest('section') || aboutHeading.parentElement
-        if (section) description = section.innerText.replace(aboutHeading.innerText, '').trim()
+        if (section) {
+          const t = section.innerText.replace(aboutHeading.innerText, '').trim()
+          if (!isJobList(t)) description = t
+        }
       }
     }
-    // Nuclear fallback: search ONLY within the right panel (detail view), not the full page
-    // This prevents picking up LinkedIn's left sidebar job results list
+    // Nuclear fallback: restrict to right panel, reject job-list elements
     if (!description) {
-      const detailPanel = document.querySelector(
-        '.scaffold-layout__detail, [class*="jobs-search__job-details--wrapper"], [class*="jobs-search__job-details"]'
-      )
+      // Try multiple selectors for the right detail panel
+      const detailPanel = document.querySelector([
+        '.scaffold-layout__detail',
+        '.jobs-search__job-details--detail-view',
+        '[class*="jobs-search__job-details--wrapper"]',
+        '[class*="jobs-search__job-details"]',
+        '.job-view-layout',
+      ].join(', '))
       const searchRoot = detailPanel || document.body
       const candidate = [...searchRoot.querySelectorAll('div, section, article')]
         .filter(el => {
           const t = (el.innerText || '').trim()
-          return t.length >= 1000 && t.length <= 15000 && !el.querySelector('nav, header')
+          return (
+            t.length >= 800 &&
+            t.length <= 15000 &&
+            !el.querySelector('nav, header') &&
+            !isJobList(t)
+          )
         })
-        .sort((a, b) => a.innerText.length - b.innerText.length)[0]
+        // Prefer elements containing JD keywords over generic containers
+        .sort((a, b) => {
+          const jdKeywords = /responsibilities|requirements|qualifications|about the (job|role)|you will|we are looking/i
+          const aScore = jdKeywords.test(a.innerText) ? 0 : 1
+          const bScore = jdKeywords.test(b.innerText) ? 0 : 1
+          if (aScore !== bScore) return aScore - bScore
+          return a.innerText.length - b.innerText.length
+        })[0]
       if (candidate) {
         description = candidate.innerText.trim()
         description_html = candidate.innerHTML
