@@ -208,7 +208,6 @@
       // Wait 2s for LinkedIn to render the lazy-loaded description, then extract and send
       setTimeout(() => {
         const extracted = extractJob()
-        console.log('[Job Arc] Extracted:', JSON.stringify({ desc: extracted.description?.slice(0, 200), skills: extracted.skills, insights: extracted.insights }, null, 2))
         chrome.runtime.sendMessage({ type: 'ADD_JOB', job: extracted }, (response) => {
           if (response && response.ok) {
             btn.innerText = '✓ Added!'
