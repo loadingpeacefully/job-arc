@@ -27,11 +27,18 @@ export default function DetailPanel({ job, onUpdate, onDelete, onClose, onVerify
       maxHeight: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column',
     }}>
       {/* Panel header */}
-      <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
+      <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: 'Inter, sans-serif' }}>{local.company}</div>
-            <div className="mono" style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{local.role}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: 'Inter, sans-serif' }}>{local.company}</div>
+            <div className="mono" style={{ fontSize: 11, color: '#a1a1aa', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{local.role}</div>
+            {(local.location || local.source) && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                {local.location && <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.05em' }}>📍 {local.location}</span>}
+                {local.source && <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.05em', background: 'var(--surface)', padding: '1px 6px', border: '1px solid var(--border)' }}>{local.source}</span>}
+                {local.posted_date && <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.05em' }}>{local.posted_date}</span>}
+              </div>
+            )}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 20, padding: 2, marginLeft: 8, lineHeight: 1 }}>×</button>
         </div>
@@ -52,14 +59,15 @@ export default function DetailPanel({ job, onUpdate, onDelete, onClose, onVerify
       </div>
 
       {/* Sub-tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)} className="mono" style={{
-            padding: '8px 14px', border: 'none', fontSize: 9, fontWeight: 700, flexShrink: 0,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
+            flex: 1, padding: '8px 6px', border: 'none', fontSize: 8.5, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
             background: 'transparent',
             color: tab === t ? 'var(--amber)' : 'var(--muted)',
             borderBottom: tab === t ? '2px solid var(--amber)' : '2px solid transparent',
+            whiteSpace: 'nowrap',
           }}>{t}</button>
         ))}
       </div>

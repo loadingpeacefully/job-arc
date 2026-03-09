@@ -19,16 +19,21 @@ async function findPmTrackerTab() {
 
 async function openPmTrackerAndInject(job) {
   const tab = await chrome.tabs.create({ url: PM_TRACKER_URL })
-  // Wait for the tab to fully load before injecting
   return new Promise((resolve) => {
     function onUpdated(tabId, info) {
       if (tabId === tab.id && info.status === 'complete') {
         chrome.tabs.onUpdated.removeListener(onUpdated)
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: injectJob,
-          args: [job],
-        }).then(() => resolve(true)).catch(() => resolve(false))
+        // Give the React app a moment to mount before injecting
+        setTimeout(() => {
+          chrome.tabs.get(tabId).then(t => {
+            if (t.url && t.url.startsWith('chrome-error://')) return resolve(false)
+            chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: injectJob,
+              args: [job],
+            }).then(() => resolve(true)).catch(() => resolve(false))
+          }).catch(() => resolve(false))
+        }, 1000)
       }
     }
     chrome.tabs.onUpdated.addListener(onUpdated)
@@ -45,24 +50,54 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       let tab = await findPmTrackerTab()
 
       if (tab) {
-        // pm-tracker is open — inject directly
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: injectJob,
-          args: [job],
-        })
-        // Focus the job-arc tab so user can see the confirmation
-        await chrome.tabs.update(tab.id, { active: true })
-        await chrome.windows.update(tab.windowId, { focused: true })
-        sendResponse({ ok: true })
+        // pm-tracker is open — check it's not showing an error page
+        const tabInfo = await chrome.tabs.get(tab.id)
+        if (tabInfo.status === 'complete' && !tabInfo.url.startsWith('chrome-error://')) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: injectJob,
+              args: [job],
+            })
+            await chrome.tabs.update(tab.id, { active: true })
+            await chrome.windows.update(tab.windowId, { focused: true })
+            sendResponse({ ok: true })
+          } catch {
+            // Tab is broken — open a fresh one
+            const ok = await openPmTrackerAndInject(job)
+            sendResponse({ ok })
+          }
+        } else {
+          // Tab is in error/loading state — navigate it to the app
+          await chrome.tabs.update(tab.id, { url: PM_TRACKER_URL, active: true })
+          const ok = await new Promise((resolve) => {
+            function onUpdated(tabId, info) {
+              if (tabId === tab.id && info.status === 'complete') {
+                chrome.tabs.onUpdated.removeListener(onUpdated)
+                chrome.scripting.executeScript({
+                  target: { tabId: tab.id },
+                  func: injectJob,
+                  args: [job],
+                }).then(() => resolve(true)).catch(() => resolve(false))
+              }
+            }
+            chrome.tabs.onUpdated.addListener(onUpdated)
+          })
+          sendResponse({ ok })
+        }
       } else {
         // pm-tracker not open — open it first then inject
         const ok = await openPmTrackerAndInject(job)
         sendResponse({ ok })
       }
-    } catch (err) {
-      console.error('Job Arc background error:', err)
-      sendResponse({ ok: false, error: err.message })
+    } catch {
+      // Final fallback — open a fresh tab and inject
+      try {
+        const ok = await openPmTrackerAndInject(job)
+        sendResponse({ ok })
+      } catch {
+        sendResponse({ ok: false })
+      }
     }
   })()
 

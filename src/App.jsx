@@ -47,7 +47,34 @@ export default function App({ onLogout }) {
       if (!job || !job.title || !job.company) return
       localStorage.removeItem('job_arc_incoming')
       setJobs(prev => {
-        const incoming = [newJob({ company: job.company, role: job.title, location: job.location || '', jd_url: job.jobUrl || '', source: 'LinkedIn Extension', status: 'Saved' })]
+        // Parse description into key requirements (non-empty lines, skip short ones)
+      const keyRequirements = job.description
+        ? job.description.split('\n').map(l => l.replace(/^[\s•\-*·]+/, '').trim()).filter(l => l.length > 10 && l.length < 300).slice(0, 15)
+        : []
+      // Parse posted date from "2 days ago" etc.
+      let posted_date = new Date().toISOString().slice(0, 10)
+      if (job.postedDate) {
+        const m = job.postedDate.match(/(\d+)\s*(day|week|month)/i)
+        if (m) {
+          const d = new Date(); const n = parseInt(m[1])
+          if (m[2].startsWith('day')) d.setDate(d.getDate() - n)
+          else if (m[2].startsWith('week')) d.setDate(d.getDate() - n * 7)
+          else if (m[2].startsWith('month')) d.setMonth(d.getMonth() - n)
+          posted_date = d.toISOString().slice(0, 10)
+        }
+      }
+      const incoming = [newJob({
+        company: job.company,
+        role: job.title,
+        location: job.location || '',
+        jd_url: job.applyLink || job.jobUrl || '',
+        source: 'LinkedIn Extension',
+        status: 'Saved',
+        posted_date,
+        tags: job.skills || [],
+        keyRequirements,
+        notes: [job.insights ? job.insights.join(' · ') : '', job.description ? '--- Full JD ---\n' + job.description.slice(0, 2000) : ''].filter(Boolean).join('\n\n'),
+      })]
         const { merged } = mergeJobs(prev, incoming)
         upsertManyJobs(incoming)
         return merged
@@ -200,7 +227,7 @@ export default function App({ onLogout }) {
         <ScanBanner msg={scanMsg} onClose={() => setScanMsg(null)} />
       )}
 
-      <div style={{ flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto', padding: '24px 24px 40px', display: 'flex', gap: 20 }}>
+      <div style={{ flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto', padding: '20px 24px 40px', display: 'flex', gap: 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {tab === 'board' && (
             <BoardView
@@ -236,7 +263,7 @@ export default function App({ onLogout }) {
         </div>
 
         {selectedJob && tab === 'board' && (
-          <div className="animate-slide" style={{ width: 400, flexShrink: 0 }}>
+          <div className="animate-slide" style={{ width: 460, flexShrink: 0 }}>
             <DetailPanel
               job={selectedJob}
               onUpdate={(u) => updateJob(selectedJob.id, u)}

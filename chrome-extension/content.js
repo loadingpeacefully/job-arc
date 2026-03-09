@@ -12,29 +12,114 @@
     let title = fromTitle ? parts.slice(0, parts.length - 2).join(' | ').trim() : null
     let company = fromTitle ? parts[parts.length - 2].trim() : null
 
-    // Override title with h1 if available (more precise, no " | LinkedIn" suffix needed)
+    // Override title with h1 if available (more precise)
     const h1 = document.querySelector('h1')
     if (h1 && h1.innerText && h1.innerText.trim()) {
       title = h1.innerText.trim()
     }
 
-    // Location: first bullet element
+    // Company name from dedicated element
+    const companyEl = document.querySelector(
+      '.job-details-jobs-unified-top-card__company-name a, ' +
+      '.job-details-jobs-unified-top-card__company-name, ' +
+      '[class*="topcard__org-name"] a, [class*="topcard__org-name"]'
+    )
+    if (companyEl && companyEl.innerText.trim()) {
+      company = companyEl.innerText.trim()
+    }
+
+    // Location
     const locationSelectors = [
       '.job-details-jobs-unified-top-card__bullet',
       '[class*="workplace-type"]',
+      '[class*="topcard__flavor--bullet"]',
     ]
     let location = ''
     for (const sel of locationSelectors) {
       const el = document.querySelector(sel)
-      if (el && el.innerText.trim()) {
-        location = el.innerText.trim()
+      if (el && el.innerText.trim()) { location = el.innerText.trim(); break }
+    }
+
+    // Posted date
+    let postedDate = ''
+    const dateEl = document.querySelector(
+      '.job-details-jobs-unified-top-card__posted-date, ' +
+      '[class*="posted-date"], ' +
+      '.jobs-unified-top-card__posted-date'
+    )
+    if (dateEl) postedDate = dateEl.innerText.trim()
+
+    // Full job description — try multiple selectors in order of specificity
+    let description = ''
+    let description_html = ''
+    const descSelectors = [
+      '.jobs-description',                          // py-linkedin-jobs-scraper primary
+      '#job-details',
+      '.jobs-description__content',
+      '.jobs-description-content__text',
+      '.jobs-description-content__text--stretch',
+      '[class*="jobs-description-content"]',
+      '[class*="description__text"]',
+      'article[class*="jobs-description"]',
+    ]
+    for (const sel of descSelectors) {
+      const el = document.querySelector(sel)
+      if (el && el.innerText && el.innerText.trim().length > 50) {
+        description = el.innerText.trim()
+        description_html = el.innerHTML
         break
+      }
+    }
+    // Last resort: find the "About the job" heading and grab its parent section
+    if (!description) {
+      const headings = [...document.querySelectorAll('h2, h3')]
+      const aboutHeading = headings.find(h => /about the job|job description|about this role/i.test(h.innerText))
+      if (aboutHeading) {
+        const section = aboutHeading.closest('section') || aboutHeading.parentElement
+        if (section) description = section.innerText.replace(aboutHeading.innerText, '').trim()
+      }
+    }
+
+    // Skills listed on the page
+    const skillEls = document.querySelectorAll(
+      '.job-details-how-you-match__skills-item-subtitle, ' +
+      '[class*="job-details-skill-match-status-list"] li, ' +
+      '[class*="job-details-how-you-match"] [class*="skill"] span, ' +
+      '.job-details-skill-match-status-list__unmatched-item span, ' +
+      '[class*="skills-match"] li'
+    )
+    const skills = [...skillEls]
+      .map(el => el.innerText.trim())
+      .filter(s => s.length > 1 && s.length < 60)
+
+    // LinkedIn insights (seniority, employees, etc.)
+    const insightEls = document.querySelectorAll(
+      '.job-details-jobs-unified-top-card__job-insight span, ' +
+      '[class*="job-insight"] span, ' +
+      '[class*="unified-top-card__job-insight"] span'
+    )
+    const insights = [...insightEls]
+      .map(el => el.innerText.trim())
+      .filter(s => s.length > 1)
+
+    // Apply link (external) or LinkedIn URL for Easy Apply
+    let applyLink = window.location.href.split('?')[0]
+    const applyBtn = document.querySelector('.jobs-apply-button--top-card')
+    if (applyBtn) {
+      const href = applyBtn.getAttribute('href')
+      if (href && href.startsWith('http') && !href.includes('linkedin.com')) {
+        applyLink = href
       }
     }
 
     const jobUrl = window.location.href.split('?')[0]
 
-    return { title, company, location, jobUrl }
+    // Company LinkedIn page link and logo
+    const companyLinkEl = document.querySelector('.job-details-jobs-unified-top-card__company-name a')
+    const company_link = companyLinkEl ? companyLinkEl.href.split('?')[0] : ''
+    const company_img_link = document.querySelector('.jobs-unified-top-card img, [class*="top-card"] img')?.src || ''
+
+    return { title, company, company_link, company_img_link, location, jobUrl, postedDate, description, description_html, skills, insights, applyLink }
   }
 
   function setHeartbeat() {
@@ -85,7 +170,7 @@
     })
 
     btn.addEventListener('click', () => {
-      const job = extractJob()
+      let job = extractJob()
       if (!job.title || !job.company) {
         btn.innerText = '⚠ Could not extract job'
         setTimeout(() => { btn.innerText = '📌 Add to Job Arc' }, 2000)
@@ -95,30 +180,43 @@
       btn.innerText = '⟳ Adding…'
       btn.disabled = true
 
-      chrome.runtime.sendMessage({ type: 'ADD_JOB', job }, (response) => {
-        if (response && response.ok) {
-          btn.innerText = '✓ Added!'
-          btn.style.borderColor = '#39FF14'
-          btn.style.color = '#39FF14'
-          btn.style.background = 'rgba(5,5,5,0.96)'
-          setTimeout(() => {
-            btn.innerText = '📌 Add to Job Arc'
-            btn.style.borderColor = '#F5A623'
-            btn.style.color = '#F5A623'
+      const sendJob = (j) => {
+        chrome.runtime.sendMessage({ type: 'ADD_JOB', job: j }, (response) => {
+          if (response && response.ok) {
+            btn.innerText = '✓ Added!'
+            btn.style.borderColor = '#39FF14'
+            btn.style.color = '#39FF14'
+            btn.style.background = 'rgba(5,5,5,0.96)'
+            setTimeout(() => {
+              btn.innerText = '📌 Add to Job Arc'
+              btn.style.borderColor = '#F5A623'
+              btn.style.color = '#F5A623'
+              btn.disabled = false
+            }, 2500)
+          } else {
+            btn.innerText = '✗ Failed — is job-arc open?'
+            btn.style.borderColor = '#FF4444'
+            btn.style.color = '#FF4444'
             btn.disabled = false
-          }, 2500)
-        } else {
-          btn.innerText = '✗ Failed — is job-arc open?'
-          btn.style.borderColor = '#FF4444'
-          btn.style.color = '#FF4444'
-          btn.disabled = false
-          setTimeout(() => {
-            btn.innerText = '📌 Add to Job Arc'
-            btn.style.borderColor = '#F5A623'
-            btn.style.color = '#F5A623'
-          }, 3000)
-        }
-      })
+            setTimeout(() => {
+              btn.innerText = '📌 Add to Job Arc'
+              btn.style.borderColor = '#F5A623'
+              btn.style.color = '#F5A623'
+            }, 3000)
+          }
+        })
+      }
+
+      // If description missing, wait 1.5s for LinkedIn lazy-load then retry extraction
+      if (!job.description) {
+        btn.innerText = '⟳ Loading JD…'
+        setTimeout(() => {
+          const retried = extractJob()
+          sendJob(retried)
+        }, 1500)
+      } else {
+        sendJob(job)
+      }
     })
 
     return btn

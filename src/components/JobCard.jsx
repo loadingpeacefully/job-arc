@@ -12,29 +12,31 @@ export default function JobCard({ job, selected, onClick }) {
       onClick={onClick}
       style={{
         background: selected ? 'var(--surface2)' : 'var(--surface)',
-        border: `1px solid ${selected ? 'var(--amber)' : 'var(--border)'}`,
-        padding: '14px 18px',
+        border: `1px solid ${selected ? 'var(--amber)30' : 'var(--border)'}`,
+        borderLeft: `3px solid ${selected ? 'var(--amber)' : cfg.color}`,
+        padding: '12px 16px',
         cursor: 'pointer',
-        boxShadow: selected ? '0 0 0 1px rgba(57,255,20,0.08)' : 'none',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         {/* Left */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Inter, sans-serif' }}>{job.company}</span>
-            <span className="mono" style={{ color: 'var(--muted)', fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.role}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: 'Inter, sans-serif', flexShrink: 0 }}>{job.company}</span>
+            <VerifyBadge verified={job.verified} />
           </div>
+          <div className="mono" style={{ color: '#a1a1aa', fontSize: 11, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.role}</div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
             <LevelBadge level={job.level} />
             <SalaryBadge salary={job.salary_band} confirmed={job.salary_confirmed} />
-            {(job.tags || []).map(t => <Tag key={t} label={t} />)}
+            {job.location && <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.04em' }}>📍 {job.location}</span>}
+            {(job.tags || []).slice(0, 3).map(t => <Tag key={t} label={t} />)}
             {stale && <Tag label="may be closed" color="var(--red)" />}
           </div>
 
           {(job.resume || job.coverLetter || job.referralContact) && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 7, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {job.resume && <FileBadge icon="📄" label={job.resume} color="var(--blue)" bg="var(--blue-bg)" />}
               {job.coverLetter && <FileBadge icon="✉️" label={job.coverLetter} color="var(--purple)" bg="var(--purple-bg)" />}
               {job.referralContact && <FileBadge icon="👤" label={job.referralContact} color="var(--green)" bg="var(--green-bg)" />}
@@ -43,13 +45,10 @@ export default function JobCard({ job, selected, onClick }) {
         </div>
 
         {/* Right */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <VerifyBadge verified={job.verified} />
-            <StatusBadge cfg={cfg} status={job.status} />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+          <StatusBadge cfg={cfg} status={job.status} />
           <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.06em' }}>{job.posted_date}</span>
-          {job.appliedDate && <span className="mono" style={{ fontSize: 9, color: 'var(--muted)' }}>applied {job.appliedDate}</span>}
+          {job.appliedDate && <span className="mono" style={{ fontSize: 9, color: 'var(--blue)' }}>applied {job.appliedDate}</span>}
           {job.interviewRounds?.length > 0 && (
             <span className="mono" style={{ fontSize: 9, color: 'var(--amber)', letterSpacing: '0.06em' }}>
               ▸ {job.interviewRounds.length} round{job.interviewRounds.length !== 1 ? 's' : ''}
