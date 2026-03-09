@@ -46,9 +46,9 @@ export default function App({ onLogout }) {
       })()
       if (!job || !job.title || !job.company) return
       localStorage.removeItem('job_arc_incoming')
-      // Parse description into key requirements (non-empty lines, skip short ones)
+      // Store full JD as key requirements (one line per entry, no truncation)
       const keyRequirements = job.description
-        ? job.description.split('\n').map(l => l.replace(/^[\s•\-*·]+/, '').trim()).filter(l => l.length > 10 && l.length < 300).slice(0, 15)
+        ? job.description.split('\n').map(l => l.trim()).filter(l => l.length > 0)
         : []
       // Parse posted date from "2 days ago" etc.
       let posted_date = new Date().toISOString().slice(0, 10)
@@ -66,7 +66,7 @@ export default function App({ onLogout }) {
       const freshData = {
         tags: job.skills || [],
         keyRequirements,
-        notes: [job.insights ? job.insights.join(' · ') : '', job.description ? '--- Full JD ---\n' + job.description.slice(0, 2000) : ''].filter(Boolean).join('\n\n'),
+        notes: job.insights && job.insights.length ? job.insights.join(' · ') : '',
         location: job.location || '',
         posted_date,
         lastUpdated: new Date().toISOString().slice(0, 10),
