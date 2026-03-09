@@ -46,8 +46,7 @@ export default function App({ onLogout }) {
       })()
       if (!job || !job.title || !job.company) return
       localStorage.removeItem('job_arc_incoming')
-      setJobs(prev => {
-        // Parse description into key requirements (non-empty lines, skip short ones)
+      // Parse description into key requirements (non-empty lines, skip short ones)
       const keyRequirements = job.description
         ? job.description.split('\n').map(l => l.replace(/^[\s•\-*·]+/, '').trim()).filter(l => l.length > 10 && l.length < 300).slice(0, 15)
         : []
@@ -63,23 +62,44 @@ export default function App({ onLogout }) {
           posted_date = d.toISOString().slice(0, 10)
         }
       }
-      const incoming = [newJob({
-        company: job.company,
-        role: job.title,
-        location: job.location || '',
-        jd_url: job.applyLink || job.jobUrl || '',
-        source: 'LinkedIn Extension',
-        status: 'Saved',
-        posted_date,
+      const jdUrl = job.applyLink || job.jobUrl || ''
+      const freshData = {
         tags: job.skills || [],
         keyRequirements,
         notes: [job.insights ? job.insights.join(' · ') : '', job.description ? '--- Full JD ---\n' + job.description.slice(0, 2000) : ''].filter(Boolean).join('\n\n'),
-      })]
-        const { merged } = mergeJobs(prev, incoming)
+        location: job.location || '',
+        posted_date,
+        lastUpdated: new Date().toISOString().slice(0, 10),
+      }
+      let isUpdate = false
+      setJobs(prev => {
+        const existingIdx = prev.findIndex(j => j.jd_url === jdUrl)
+        if (existingIdx !== -1) {
+          isUpdate = true
+          const updated = prev.map((j, i) => {
+            if (i !== existingIdx) return j
+            const refreshed = { ...j, ...freshData }
+            upsertJob(refreshed)
+            return refreshed
+          })
+          return updated
+        }
+        const incoming = [newJob({
+          company: job.company,
+          role: job.title,
+          jd_url: jdUrl,
+          source: 'LinkedIn Extension',
+          status: 'Saved',
+          ...freshData,
+        })]
         upsertManyJobs(incoming)
+        const { merged } = mergeJobs(prev, incoming)
         return merged
       })
-      setScanMsg({ type: 'success', text: `✅ "${job.title}" at ${job.company} added from LinkedIn.` })
+      setScanMsg({ type: 'success', text: isUpdate
+        ? `✅ "${job.title}" at ${job.company} refreshed with latest JD.`
+        : `✅ "${job.title}" at ${job.company} added from LinkedIn.`
+      })
     }
     window.addEventListener('job_arc_job', handler)
     return () => window.removeEventListener('job_arc_job', handler)
