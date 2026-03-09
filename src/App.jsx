@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { loadJobs, upsertJob, deleteJobDB, upsertManyJobs, loadSettings, saveSettings, loadLastScan, saveLastScan, exportData, importData } from './utils/storage'
-import { runLiveScan, mergeJobs, verifyJob } from './utils/claudeApi'
+import { runLiveScan, mergeJobs, verifyJob, generateResume } from './utils/claudeApi'
+import PROFILE_TEXT from '../Suneet_Jagdev_Profile.md?raw'
 import { newJob } from './utils/jobUtils'
 import Header from './components/Header'
 import BoardView from './components/BoardView'
@@ -47,6 +48,7 @@ export default function App({ onLogout }) {
   const [scanMsg, setScanMsg] = useState(null)
   const [lastScan, setLastScan] = useState(() => loadLastScan())
   const [verifyingId, setVerifyingId] = useState(null)
+  const [generatingResumeId, setGeneratingResumeId] = useState(null)
 
   // Load data from Supabase on mount
   useEffect(() => {
@@ -216,6 +218,26 @@ export default function App({ onLogout }) {
     }
   }, [jobs, settings.apiKey, updateJob])
 
+  const handleGenerateResume = useCallback(async (jobId) => {
+    const job = jobs.find(j => j.id === jobId)
+    if (!job) return
+    if (!settings.apiKey) {
+      setScanMsg({ type: 'error', text: 'Add your Anthropic API key in Settings first.' })
+      return
+    }
+    setGeneratingResumeId(jobId)
+    setScanMsg({ type: 'info', text: `Generating tailored resume for "${job.company} — ${job.role}"…` })
+    try {
+      const html = await generateResume(settings.apiKey, job, PROFILE_TEXT)
+      updateJob(jobId, { resumeHtml: html })
+      setScanMsg({ type: 'success', text: `✅ Resume generated for ${job.company}. Download it from the Resume tab.` })
+    } catch (err) {
+      setScanMsg({ type: 'error', text: `Resume generation failed: ${err.message}` })
+    } finally {
+      setGeneratingResumeId(null)
+    }
+  }, [jobs, settings.apiKey, updateJob])
+
   const handleLinkedInPaste = useCallback((parsed) => {
     const { merged, added } = mergeJobs(jobs, parsed)
     upsertManyJobs(parsed)
@@ -307,6 +329,8 @@ export default function App({ onLogout }) {
               onClose={() => setSelectedId(null)}
               onVerify={handleVerify}
               verifying={verifyingId === selectedJob.id}
+              onGenerateResume={handleGenerateResume}
+              generatingResume={generatingResumeId === selectedJob.id}
             />
           </div>
         )}

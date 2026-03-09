@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { STATUS, INTERVIEW_TYPES, LEARNING_STATUSES, LEVELS } from '../constants'
-import { newInterviewRound, newLearningTopic } from '../utils/jobUtils'
+import { STATUS, INTERVIEW_TYPES, LEVELS } from '../constants'
+import { newInterviewRound } from '../utils/jobUtils'
 
-const TABS = ['Overview', 'Application', 'Interviews', 'Learning', 'Salary']
+const TABS = ['Overview', 'Application', 'Interviews', 'Resume', 'Salary']
 
-export default function DetailPanel({ job, onUpdate, onDelete, onClose, onVerify, verifying }) {
+export default function DetailPanel({ job, onUpdate, onDelete, onClose, onVerify, verifying, onGenerateResume, generatingResume }) {
   const [local, setLocal] = useState(job)
   const [tab, setTab] = useState('Overview')
   const [dirty, setDirty] = useState(false)
@@ -90,7 +90,7 @@ export default function DetailPanel({ job, onUpdate, onDelete, onClose, onVerify
         {tab === 'Overview' && <OverviewTab local={local} set={set} onVerify={onVerify} verifying={verifying} />}
         {tab === 'Application' && <ApplicationTab local={local} set={set} />}
         {tab === 'Interviews' && <InterviewsTab local={local} set={set} />}
-        {tab === 'Learning' && <LearningTab local={local} set={set} />}
+        {tab === 'Resume' && <ResumeTab local={local} set={set} onGenerateResume={onGenerateResume} generatingResume={generatingResume} />}
         {tab === 'Salary' && <SalaryTab local={local} set={set} />}
       </div>
 
@@ -299,70 +299,77 @@ function InterviewsTab({ local, set }) {
   )
 }
 
-function LearningTab({ local, set }) {
-  const topics = local.learningTopics || []
-  const reqs = local.keyRequirements || []
+function ResumeTab({ local, set, onGenerateResume, generatingResume }) {
+  const hasResume = !!local.resumeHtml
 
-  const addTopic = () => set('learningTopics', [...topics, newLearningTopic()])
-  const updateTopic = (id, updates) => set('learningTopics', topics.map(t => t.id === id ? { ...t, ...updates } : t))
-  const deleteTopic = (id) => set('learningTopics', topics.filter(t => t.id !== id))
-
-  const done = topics.filter(t => t.status === 'Done').length
-  const pct = topics.length ? Math.round((done / topics.length) * 100) : 0
+  const downloadResume = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${local.company} — Resume</title></head><body>${local.resumeHtml}</body></html>`
+    const blob = new Blob([html], { type: 'text/html' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `Resume_${local.company.replace(/[^a-z0-9]/gi, '_')}.html`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
 
   return (
     <>
-      {reqs.length > 0 && (
-        <div style={{ background: 'var(--amber-bg)', border: '1px solid var(--amber)20', padding: 12, marginBottom: 16 }}>
-          <div className="mono" style={{ fontSize: 9, color: 'var(--amber)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>// JD Key Requirements</div>
-          <ul style={{ paddingLeft: 16, margin: 0 }}>
-            {reqs.map((r, i) => <li key={i} className="mono" style={{ fontSize: 11, color: 'var(--text)', marginBottom: 4 }}>{r}</li>)}
-          </ul>
+      <div style={{ marginBottom: 16, padding: '10px 12px', background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+        <div className="mono" style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>// Tailored Resume</div>
+        <p className="mono" style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.6, margin: '0 0 12px' }}>
+          Generates a resume tailored to this specific role using your profile and the job description. Download as HTML → open in browser → print to PDF.
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => onGenerateResume && onGenerateResume(local.id)}
+            disabled={generatingResume}
+            className="mono"
+            style={{
+              flex: 1, padding: '8px 12px', fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              background: generatingResume ? 'var(--surface2)' : 'var(--amber-bg)',
+              color: generatingResume ? 'var(--muted)' : 'var(--amber)',
+              border: `1px solid ${generatingResume ? 'var(--border)' : 'var(--amber)30'}`,
+            }}
+          >
+            {generatingResume ? '⟳ Generating…' : hasResume ? '↺ Regenerate' : '✦ Generate Resume'}
+          </button>
+          {hasResume && (
+            <button
+              onClick={downloadResume}
+              className="mono"
+              style={{
+                flex: 1, padding: '8px 12px', fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                background: 'var(--surface2)',
+                color: 'var(--blue)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              ↓ Download .html
+            </button>
+          )}
         </div>
-      )}
-
-      {topics.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, marginBottom: 6 }}>
-            <span className="mono" style={{ color: 'var(--muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Learning Progress</span>
-            <span className="mono" style={{ color: 'var(--amber)', fontWeight: 700 }}>{done}/{topics.length} ({pct}%)</span>
-          </div>
-          <div style={{ height: 3, background: 'var(--border)' }}>
-            <div style={{ height: '100%', width: `${pct}%`, background: 'var(--amber)', transition: 'width 0.4s' }} />
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.06em' }}>{topics.length} topic{topics.length !== 1 ? 's' : ''}</span>
-        <button onClick={addTopic} className="mono" style={{ padding: '4px 12px', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'var(--amber-bg)', color: 'var(--amber)', border: '1px solid var(--amber)30' }}>
-          + Add Topic
-        </button>
       </div>
 
-      {topics.map(t => (
-        <div key={t.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', padding: 12, marginBottom: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Field label="Topic">
-              <TextInput value={t.topic} onChange={v => updateTopic(t.id, { topic: v })} placeholder="e.g. Payment Gateway Architecture" />
-            </Field>
-            <button onClick={() => deleteTopic(t.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 14, cursor: 'pointer', marginLeft: 8, marginTop: 16, alignSelf: 'flex-start' }}>×</button>
+      {hasResume && (
+        <div style={{ border: '1px solid var(--border)', background: '#fff', overflow: 'hidden' }}>
+          <div className="mono" style={{ fontSize: 9, color: 'var(--muted)', padding: '6px 10px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Preview
           </div>
-          <Field label="Resource / Link">
-            <TextInput value={t.resource} onChange={v => updateTopic(t.id, { resource: v })} placeholder="Course URL, book, article…" mono />
-          </Field>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {LEARNING_STATUSES.map(s => (
-              <button key={s} onClick={() => updateTopic(t.id, { status: s })} className="mono" style={{
-                padding: '3px 8px', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                background: t.status === s ? (s === 'Done' ? 'var(--green-bg)' : s === 'In Progress' ? 'var(--amber-bg)' : 'var(--surface2)') : 'transparent',
-                color: t.status === s ? (s === 'Done' ? 'var(--green)' : s === 'In Progress' ? 'var(--amber)' : 'var(--muted)') : 'var(--muted)',
-                border: `1px solid ${t.status === s ? 'currentColor' : 'var(--border)'}`,
-              }}>{s}</button>
-            ))}
-          </div>
+          <iframe
+            srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#fff">${local.resumeHtml}</body></html>`}
+            style={{ width: '100%', height: 500, border: 'none', display: 'block' }}
+            title="Resume preview"
+          />
         </div>
-      ))}
+      )}
+
+      {!hasResume && !generatingResume && (
+        <div className="mono" style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)', fontSize: 10, letterSpacing: '0.06em', border: '1px dashed var(--border)' }}>
+          no resume generated yet
+        </div>
+      )}
     </>
   )
 }

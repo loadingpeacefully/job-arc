@@ -239,17 +239,31 @@
 
       // Click "Show more" to expand collapsed job descriptions
       setTimeout(() => {
-        const showMoreBtn = document.querySelector([
+        const showMoreSelectors = [
           '.jobs-description__footer-button',
           '[class*="show-more-less-html__button--more"]',
           '.show-more-less-html__button',
           'button[aria-label*="show more"]',
           'button[aria-label*="See more"]',
-        ].join(', '))
-        if (showMoreBtn) showMoreBtn.click()
-      }, 800)
+          'button[aria-label*="Show more"]',
+        ]
+        let showMoreBtn = document.querySelector(showMoreSelectors.join(', '))
+        if (!showMoreBtn) {
+          // Text-based fallback: any button in the description area with "show more" text
+          const descArea = document.querySelector('#job-details, .jobs-description, [class*="jobs-description"]')
+          const root = descArea || document.body
+          showMoreBtn = [...root.querySelectorAll('button')].find(b =>
+            /show more/i.test((b.innerText || b.textContent || '').trim()) ||
+            /show more/i.test(b.getAttribute('aria-label') || '')
+          )
+        }
+        if (showMoreBtn) {
+          showMoreBtn.click()
+          showMoreBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        }
+      }, 1200)
 
-      // Wait 2.5s total (extra 500ms for expand animation) then extract and send
+      // Wait 4s total (2.8s for expand animation + render) then extract and send
       setTimeout(() => {
         const extracted = extractJob()
         chrome.runtime.sendMessage({ type: 'ADD_JOB', job: extracted }, (response) => {
@@ -276,7 +290,7 @@
             }, 3000)
           }
         })
-      }, 2500)
+      }, 4000)
     })
 
     return btn

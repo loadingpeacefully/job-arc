@@ -175,6 +175,195 @@ Return ONLY this JSON, no explanation:
   }
 }
 
+// Strip sub-project details from profile, keep structure + outcomes only (~4k chars vs ~15k)
+function compressProfile(text) {
+  const lines = text.split('\n')
+  const result = []
+  let inProject = false
+  let inOutcomes = false
+  let pastSkills = false
+
+  for (const line of lines) {
+    const t = line.trim()
+
+    // From Skills section onwards — keep everything
+    if (/^# (Skills|Education|Awards)/.test(t)) { pastSkills = true }
+    if (pastSkills) { result.push(line); continue }
+
+    // Company / Role headings — always keep, reset project context
+    if (t.startsWith('# Company') || t.startsWith('## Role')) {
+      inProject = false; inOutcomes = false; result.push(line); continue
+    }
+
+    // Project heading — keep heading, enter project context
+    if (t.startsWith('### Project')) {
+      inProject = true; inOutcomes = false; result.push(line); continue
+    }
+
+    // Sub-sub headings inside project — skip
+    if (inProject && t.startsWith('####')) { inOutcomes = false; continue }
+
+    // Outcomes block — always keep
+    if (/^\*\*Outcomes?:?\*\*/i.test(t) || /^\*\*Signature outcomes/i.test(t)) {
+      inOutcomes = true; result.push(line); continue
+    }
+
+    if (inOutcomes) {
+      if (!t || t.startsWith('#') || (t.startsWith('**') && !t.startsWith('**Outcomes') && !t.match(/^[-•*]/))) {
+        inOutcomes = false
+      } else {
+        result.push(line); continue
+      }
+    }
+
+    // Not in a project — keep everything (summary, role context lines, dates)
+    if (!inProject) { result.push(line); continue }
+
+    // In project but not outcomes — skip (sub-project details)
+  }
+
+  return result.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+export async function generateResume(apiKey, job, profileText) {
+  if (!apiKey) throw new Error('API key not set. Add it in Settings.')
+
+  const compressed = compressProfile(profileText)
+  // Cap JD at 60 lines — top of JD has the most important requirements
+  const jdLines = (job.keyRequirements || []).slice(0, 60)
+  const jdContent = jdLines.join('\n')
+
+  const prompt = `You are a professional resume writer. Produce a tailored, ATS-optimised resume for the candidate, customised for the target role.
+
+CANDIDATE PROFILE:
+${compressed}
+
+TARGET ROLE: "${job.role}" at "${job.company}"
+JOB DESCRIPTION / KEY REQUIREMENTS:
+${jdContent || '(Not available — use company context and role title to tailor)'}
+
+INSTRUCTIONS:
+1. Tailor the Profile summary (2–3 sentences) to this specific role and company. No "seasoned" or "passionate".
+2. Reorder/select experience content to match JD keywords. Preserve all quantified outcomes (%, ₹, ratios).
+3. Write role descriptions as flowing paragraph sentences (not bullet points) — same style as the template.
+4. Output ONLY the HTML content block — no preamble, no markdown fences, start directly with <link ...>
+
+Use EXACTLY this HTML structure and CSS class names (do not add inline styles):
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=PT+Sans:ital,wght@0,400;0,700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #fff; }
+.page { width: 595px; min-height: 842px; background: #FFFFFF; padding: 28px; display: flex; flex-direction: column; gap: 15px; }
+.header { display: flex; flex-direction: row; align-items: flex-end; justify-content: space-between; }
+.header-left { display: flex; flex-direction: column; gap: 9px; }
+.name { font-family: 'PT Sans', sans-serif; font-weight: 700; font-size: 13.704px; line-height: 18px; color: #384347; }
+.title-line { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 10px; color: #384347; }
+.contact { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 8.2px; line-height: 11px; color: #384347; text-align: right; }
+.section { display: flex; flex-direction: column; gap: 10px; }
+.section-header { display: flex; flex-direction: column; gap: 5px; }
+.section-title { font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 11px; color: #384347; text-transform: uppercase; }
+.section-rule { width: 100%; height: 1px; background: #384347; }
+.section-body { font-family: 'PT Sans', sans-serif; font-weight: 700; font-size: 8.2px; line-height: 11px; color: #384347; }
+.companies { display: flex; flex-direction: column; gap: 15px; }
+.company { display: flex; flex-direction: column; gap: 10px; }
+.company-header { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.company-name { font-family: 'PT Sans', sans-serif; font-weight: 700; font-size: 11px; line-height: 14px; color: #1B4A8B; }
+.company-city { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 11px; line-height: 14px; color: #1B4A8B; }
+.company-desc { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 8.2px; line-height: 11px; color: #384347; }
+.roles { display: flex; flex-direction: column; gap: 10px; }
+.role { display: flex; flex-direction: column; gap: 8px; }
+.role-header { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
+.role-title { font-family: 'PT Sans', sans-serif; font-weight: 700; font-size: 10px; line-height: 13px; color: #384347; }
+.role-date { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 10px; line-height: 13px; color: #384347; white-space: nowrap; }
+.role-bullets { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 8.2px; line-height: 11px; color: #384347; }
+.edu-entry { display: flex; flex-direction: column; gap: 8px; }
+@media print { body { background: #fff; } .page { min-height: auto; } }
+</style>
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <div class="name">SUNEET JAGDEV</div>
+      <div class="title-line">Senior Product Manager | 0→1 Consumer Products | Growth &amp; Engagement</div>
+    </div>
+    <div class="contact">+91 9547058480<br>suneet.product@gmail.com<br>linkedin.com/in/suneetjagdev</div>
+  </div>
+  <div class="section">
+    <div class="section-header"><div class="section-title">Profile</div><div class="section-rule"></div></div>
+    <div class="section-body"><!-- TAILORED 2-3 SENTENCE PROFILE HERE --></div>
+  </div>
+  <div class="section">
+    <div class="section-header"><div class="section-title">Experience</div><div class="section-rule"></div></div>
+    <div class="companies">
+      <!-- FOR EACH COMPANY: -->
+      <div class="company">
+        <div class="company-header">
+          <div class="company-name">Company Name</div>
+          <div class="company-city">City</div>
+        </div>
+        <div class="company-desc">One sentence company description.</div>
+        <div class="roles">
+          <div class="role">
+            <div class="role-header">
+              <div class="role-title">Role Title | Focus Area</div>
+              <div class="role-date">Mon YYYY – Mon YYYY</div>
+            </div>
+            <div class="role-bullets">Flowing paragraph sentences describing achievements with quantified outcomes. Each major achievement as a sentence. No bullet characters.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><div class="section-title">Education</div><div class="section-rule"></div></div>
+    <div class="edu-entry">
+      <div class="company-header">
+        <div class="company-name">Indian Institute of Technology, Kharagpur</div>
+        <div class="company-city">Kharagpur</div>
+      </div>
+      <div class="role-header">
+        <div class="role-title">Bachelor of Architecture (B.Arch. Hons.) | Architecture &amp; Regional Planning</div>
+        <div class="role-date">2012 – 2018</div>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header"><div class="section-title">Skills</div><div class="section-rule"></div></div>
+    <div class="section-body"><!-- SKILLS AS BOLD PARAGRAPH: "Product: ... Analytics: ... Tools: ..." --></div>
+  </div>
+</div>`
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err?.error?.message || `API error ${response.status}`)
+  }
+
+  const data = await response.json()
+  const html = data.content
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('')
+    .replace(/```html\n?/g, '').replace(/```\n?/g, '').trim()
+
+  return html
+}
+
 export function mergeJobs(existing, incoming) {
   const existingUrls = new Set(existing.map(j => j.jd_url))
   const newOnly = incoming.filter(j => !existingUrls.has(j.jd_url))
