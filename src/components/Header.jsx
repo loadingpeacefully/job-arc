@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getDaysAgo } from '../utils/jobUtils'
 import { clearSession } from '../utils/auth'
 
-export default function Header({ tab, setTab, onAdd, onScan, scanning, lastScan, onLogout }) {
+export default function Header({ tab, setTab, onAdd, onScan, scanning, lastScan, onLogout, onSettings }) {
   const scanAge = lastScan ? getDaysAgo(lastScan.slice(0,10)) : null
   const [extActive, setExtActive] = useState(false)
   useEffect(() => {
@@ -99,6 +99,19 @@ export default function Header({ tab, setTab, onAdd, onScan, scanning, lastScan,
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: extActive ? '#39FF14' : 'var(--border)', boxShadow: extActive ? '0 0 6px #39FF14' : 'none', transition: 'all 0.4s ease' }} />
             {extActive && <span className="mono" style={{ fontSize: 8, color: 'var(--green)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ext</span>}
           </div>
+          <button
+            onClick={onSettings}
+            className="mono"
+            style={{
+              padding: '6px 12px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'transparent', color: 'var(--muted)', fontSize: 10,
+              fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,166,35,0.4)'; e.currentTarget.style.color = 'var(--amber)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'var(--muted)' }}
+          >Settings</button>
+
           <button
             onClick={() => { clearSession(); onLogout() }}
             className="mono"
