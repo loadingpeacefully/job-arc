@@ -97,17 +97,20 @@ export async function runLiveScan(apiKey) {
 export async function verifyJob(apiKey, { company, role, jd_url }) {
   if (!apiKey) throw new Error('API key not set. Add it in Settings.')
 
-  const prompt = `Search for the official job posting for the role "${role}" at "${company}" on their own careers website (not LinkedIn, not Glassdoor, not Indeed — the company's own domain).
+  const prompt = `Search for two things about the role "${role}" at "${company}":
 
-If found, return ONLY a JSON object like:
-{"found": true, "canonicalUrl": "https://careers.company.com/jobs/123456"}
+1. OFFICIAL JOB POSTING: Find this role on ${company}'s own careers website (not LinkedIn, not Glassdoor, not Indeed — their own domain). The LinkedIn URL for reference: ${jd_url || 'not provided'}
 
-If not found, return ONLY:
-{"found": false, "canonicalUrl": null}
+2. SALARY DATA: Search for salary estimates for "${role}" at "${company}" from trusted sources: Levels.fyi, Glassdoor, LinkedIn Salary, or Blind. Prefer India/Bengaluru data if available, otherwise use global data and note it.
 
-The LinkedIn URL for reference is: ${jd_url || 'not provided'}
-
-Return ONLY valid JSON, no explanation.`
+Return ONLY this JSON object, no explanation:
+{
+  "found": true or false,
+  "canonicalUrl": "https://careers.company.com/jobs/..." or null,
+  "salary_verified": "60–90 LPA" or "120k–150k USD" or null,
+  "salary_source": "Levels.fyi" or "Glassdoor" or "LinkedIn Salary" or null,
+  "salary_confirmed": true if salary came from Levels.fyi or Glassdoor structured data, false otherwise
+}`
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -119,7 +122,7 @@ Return ONLY valid JSON, no explanation.`
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 512,
+      max_tokens: 1024,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -139,12 +142,13 @@ Return ONLY valid JSON, no explanation.`
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
   const start = clean.indexOf('{')
   const end = clean.lastIndexOf('}')
-  if (start === -1 || end === -1) return { found: false, canonicalUrl: null }
+  const empty = { found: false, canonicalUrl: null, salary_verified: null, salary_source: null, salary_confirmed: false }
+  if (start === -1 || end === -1) return empty
 
   try {
-    return JSON.parse(clean.slice(start, end + 1))
+    return { ...empty, ...JSON.parse(clean.slice(start, end + 1)) }
   } catch {
-    return { found: false, canonicalUrl: null }
+    return empty
   }
 }
 

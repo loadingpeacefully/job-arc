@@ -161,12 +161,22 @@ function OverviewTab({ local, set, onVerify, verifying }) {
           </div>
         </div>
         {local.canonicalUrl && (
-          <a href={local.canonicalUrl} target="_blank" rel="noopener noreferrer" className="mono" style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.04em', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <a href={local.canonicalUrl} target="_blank" rel="noopener noreferrer" className="mono" style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.04em', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 4 }}>
             ↗ {local.canonicalUrl}
           </a>
         )}
+        {local.salary_verified && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.04em' }}>{local.salary_verified}</span>
+            {local.salary_source && (
+              <span className="mono" style={{ fontSize: 9, color: local.salary_confirmed ? 'var(--green)' : 'var(--muted)', letterSpacing: '0.06em', padding: '1px 6px', border: `1px solid ${local.salary_confirmed ? 'var(--green)30' : 'var(--border)'}`, background: local.salary_confirmed ? 'var(--green-bg)' : 'transparent' }}>
+                {local.salary_confirmed ? '✓ ' : ''}{local.salary_source}
+              </span>
+            )}
+          </div>
+        )}
         {local.verifiedAt && (
-          <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.04em', display: 'block', marginTop: 2 }}>checked {local.verifiedAt}</span>
+          <span className="mono" style={{ fontSize: 9, color: 'var(--muted)', letterSpacing: '0.04em', display: 'block', marginTop: 4 }}>checked {local.verifiedAt}</span>
         )}
       </div>
 

@@ -177,12 +177,16 @@ export default function App({ onLogout }) {
         verified: result.found,
         canonicalUrl: result.canonicalUrl || '',
         verifiedAt: new Date().toISOString().slice(0, 10),
+        salary_verified: result.salary_verified || '',
+        salary_source: result.salary_source || '',
+        salary_confirmed: result.salary_confirmed || false,
       })
+      const salaryNote = result.salary_verified ? ` · Salary: ${result.salary_verified} (${result.salary_source})` : ''
       setScanMsg({
         type: result.found ? 'success' : 'error',
         text: result.found
-          ? `✓ Verified: ${job.company} role found on their careers site.`
-          : `✗ No matching listing found for ${job.company} — ${job.role}.`,
+          ? `✓ Verified: ${job.company} role found on their careers site.${salaryNote}`
+          : `✗ No matching listing found for ${job.company} — ${job.role}.${salaryNote}`,
       })
     } catch (err) {
       setScanMsg({ type: 'error', text: `Verify failed: ${err.message}` })
