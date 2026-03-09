@@ -10,6 +10,19 @@ export default function DetailPanel({ job, onUpdate, onDelete, onClose, onVerify
   const [dirty, setDirty] = useState(false)
 
   useEffect(() => { setLocal(job); setDirty(false); setTab('Overview') }, [job.id])
+  // Sync fields that change from external actions (Verify) without resetting user edits
+  useEffect(() => {
+    setLocal(l => ({
+      ...l,
+      verified: job.verified,
+      canonicalUrl: job.canonicalUrl,
+      verifiedAt: job.verifiedAt,
+      salary_verified: job.salary_verified,
+      salary_source: job.salary_source,
+      salary_confirmed: job.salary_confirmed,
+      salary_band: job.salary_band,
+    }))
+  }, [job.verified, job.salary_band])
 
   const set = (key, val) => {
     setLocal(l => ({ ...l, [key]: val }))

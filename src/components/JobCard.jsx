@@ -26,6 +26,7 @@ export default function JobCard({ job, selected, onClick }) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
             {job.salary_band && <SalaryBadge salary={job.salary_band} confirmed={job.salary_confirmed} />}
+            {(job.tags || []).slice(0, 3).map(t => <Tag key={t} label={t} />)}
             {(job.resume || job.coverLetter || job.referralContact) && (
               <>
                 {job.resume && <FileBadge icon="📄" label={job.resume} color="var(--blue)" bg="var(--blue-bg)" />}
@@ -87,6 +88,18 @@ function SalaryBadge({ salary, confirmed }) {
       letterSpacing: '0.06em',
     }}>
       {salary}
+    </span>
+  )
+}
+
+function Tag({ label }) {
+  return (
+    <span className="mono" style={{
+      fontSize: 9, padding: '2px 6px', border: '1px solid var(--border)',
+      background: 'transparent', color: 'var(--muted)',
+      letterSpacing: '0.06em', textTransform: 'uppercase',
+    }}>
+      {label}
     </span>
   )
 }

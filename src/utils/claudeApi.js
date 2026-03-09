@@ -120,7 +120,11 @@ Search ALL of these for compensation data for "${role}" at "${company}":
 - Naukri salary data
 - Any news articles mentioning compensation for this role/company
 Prefer India/Bengaluru data. Use global data only if India data unavailable (note it).
-Return as a RANGE always (e.g. "80–120 LPA"). Only return exact number if 90%+ confident from structured data.
+IMPORTANT — salary format rules:
+- ALWAYS express in LPA (Lakhs Per Annum) for India roles
+- Convert: ₹8.3M = 83 LPA, ₹1Cr = 100 LPA, ₹50L = 50 LPA
+- Always return as a RANGE: "80–100 LPA" not "83 LPA" unless the single figure is highly confirmed
+- Never return ₹M, ₹Cr, INR, or USD format for India roles
 
 Return ONLY this JSON, no explanation:
 {

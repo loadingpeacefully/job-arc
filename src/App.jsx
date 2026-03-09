@@ -12,7 +12,27 @@ import AddJobModal from './components/AddJobModal'
 import SettingsModal from './components/SettingsModal'
 import ScanBanner from './components/ScanBanner'
 
-const DEFAULT_SETTINGS = { apiKey: '', userName: '', targetRole: 'Senior Product Manager', minSalary: 40 }
+const DEFAULT_SETTINGS = { apiKey: '', userName: '', bio: '', linkedinUrl: '', githubUrl: '', profileImage: '' }
+
+// Infer up to 3 domain tags from job title + company + JD text (no API call needed)
+function inferTags(title = '', company = '', jdText = '') {
+  const text = `${title} ${company} ${jdText}`.toLowerCase()
+  const candidates = [
+    ['AI/ML',      /\b(ai|ml|machine learning|llm|genai|generative ai|nlp|computer vision|speech|voice|audio|annotation|model eval)\b/],
+    ['Fintech',    /\b(fintech|payments|banking|lending|credit|insurance|wealth|neobank|wallet|upi|kyc)\b/],
+    ['B2B SaaS',   /\b(b2b|saas|enterprise|api platform|devtools|developer platform)\b/],
+    ['Consumer',   /\b(consumer|b2c|marketplace|e-commerce|ecommerce|d2c|retail|social)\b/],
+    ['Data',       /\b(data platform|analytics|sql|bigquery|dashboard|bi|data pipeline|data quality)\b/],
+    ['Growth',     /\b(growth|acquisition|retention|funnel|conversion|plg|product-led growth)\b/],
+    ['EdTech',     /\b(edtech|education|learning|lms|upskill|course|curriculum)\b/],
+    ['HealthTech', /\b(healthtech|health|medical|clinical|pharma|diagnostics|patient)\b/],
+    ['Infra',      /\b(infrastructure|platform engineering|devops|kubernetes|cloud|aws|gcp|azure|observability)\b/],
+    ['Mobility',   /\b(mobility|logistics|supply chain|fleet|ride|delivery|maps|geo)\b/],
+    ['Gaming',     /\b(gaming|game|esports|gamification|interactive)\b/],
+    ['Video',      /\b(video|streaming|media|broadcast|webrtc|live)\b/],
+  ]
+  return candidates.filter(([, re]) => re.test(text)).map(([tag]) => tag).slice(0, 3)
+}
 
 export default function App({ onLogout }) {
   const [jobs, setJobs] = useState([])
@@ -63,7 +83,7 @@ export default function App({ onLogout }) {
       }
       const jdUrl = job.applyLink || job.jobUrl || ''
       const freshData = {
-        tags: job.skills || [],
+        tags: inferTags(job.title, job.company, job.description || ''),
         keyRequirements,
         notes: job.insights && job.insights.length ? job.insights.join(' · ') : '',
         location: job.location || '',
