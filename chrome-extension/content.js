@@ -55,12 +55,15 @@
     const descSelectors = [
       '.jobs-description',
       '#job-details',
+      '[class*="jobs-description__container"]',
       '[class*="jobs-description__content"]',
       '[class*="jobs-description-content"]',
       '[class*="description__text"]',
       '.jobs-box__html-content',
       '[class*="jobs-box"]',
       'article[class*="jobs"]',
+      '.scaffold-layout__detail article',
+      '[class*="job-view-layout"] section',
     ]
     for (const sel of descSelectors) {
       const el = document.querySelector(sel)
@@ -79,12 +82,13 @@
         if (section) description = section.innerText.replace(aboutHeading.innerText, '').trim()
       }
     }
-    // Nuclear fallback: find the smallest div/section/article with 300-20000 chars that isn't nav
+    // Nuclear fallback: find the smallest div/section/article with 1000-15000 chars that isn't nav
+    // Minimum 1000 chars excludes LinkedIn's applicant stats sidebar (~400 chars)
     if (!description) {
       const candidate = [...document.querySelectorAll('div, section, article')]
         .filter(el => {
           const t = (el.innerText || '').trim()
-          return t.length >= 300 && t.length <= 20000 && !el.querySelector('nav, header')
+          return t.length >= 1000 && t.length <= 15000 && !el.querySelector('nav, header')
         })
         .sort((a, b) => a.innerText.length - b.innerText.length)[0]
       if (candidate) {
@@ -105,11 +109,11 @@
       .map(el => el.innerText.trim())
       .filter(s => s.length > 1 && s.length < 60)
 
-    // LinkedIn insights (seniority, employees, etc.)
+    // LinkedIn insights (seniority, employment type, company size) — restricted to top card only
     const insightEls = document.querySelectorAll(
+      '.job-details-jobs-unified-top-card__container--two-pane li span, ' +
       '.job-details-jobs-unified-top-card__job-insight span, ' +
-      '[class*="job-insight"] span, ' +
-      '[class*="unified-top-card__job-insight"] span'
+      '[class*="job-details-jobs-unified-top-card"] [class*="job-insight"] span'
     )
     const insights = [...insightEls]
       .map(el => el.innerText.trim())
