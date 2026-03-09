@@ -245,7 +245,7 @@ ${jdContent || '(Not available — use company context and role title to tailor)
 INSTRUCTIONS:
 1. Tailor the Profile summary (2–3 sentences) to this specific role and company. No "seasoned" or "passionate".
 2. Reorder/select experience content to match JD keywords. Preserve all quantified outcomes (%, ₹, ratios).
-3. Write role descriptions as flowing paragraph sentences (not bullet points) — same style as the template.
+3. Write role descriptions as bullet points using "• " prefix, separated by <br> — one bullet per line. Example: • First achievement with outcome.<br>• Second achievement.<br>• Third. Never merge into one paragraph.
 4. Output ONLY the HTML content block — no preamble, no markdown fences, start directly with <link ...>
 
 Use EXACTLY this HTML structure and CSS class names (do not add inline styles):
@@ -267,7 +267,7 @@ body { background: #fff; }
 .section-rule { width: 100%; height: 1px; background: #384347; }
 .section-body { font-family: 'PT Sans', sans-serif; font-weight: 700; font-size: 8.2px; line-height: 11px; color: #384347; }
 .companies { display: flex; flex-direction: column; gap: 15px; }
-.company { display: flex; flex-direction: column; gap: 10px; }
+.company { display: flex; flex-direction: column; gap: 12px; }
 .company-header { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
 .company-name { font-family: 'PT Sans', sans-serif; font-weight: 700; font-size: 11px; line-height: 14px; color: #1B4A8B; }
 .company-city { font-family: 'PT Sans', sans-serif; font-weight: 400; font-size: 11px; line-height: 14px; color: #1B4A8B; }
@@ -309,7 +309,7 @@ body { background: #fff; }
               <div class="role-title">Role Title | Focus Area</div>
               <div class="role-date">Mon YYYY – Mon YYYY</div>
             </div>
-            <div class="role-bullets">Flowing paragraph sentences describing achievements with quantified outcomes. Each major achievement as a sentence. No bullet characters.</div>
+            <div class="role-bullets">• First achievement with quantified outcome.<br>• Second achievement.<br>• Third achievement.</div>
           </div>
         </div>
       </div>
@@ -362,6 +362,110 @@ body { background: #fff; }
     .replace(/```html\n?/g, '').replace(/```\n?/g, '').trim()
 
   return html
+}
+
+const DISCOVER_PROMPT = `You are a job research assistant for Suneet Jagdev, a Senior Product Manager with 6 years experience across:
+- EdTech (consumer apps, engagement loops, gamification, AI/ML content systems, RAG pipelines)
+- Logistics / Marketplace (consumer-facing booking, ops-tech, algorithmic allocation)
+- ConstructionTech / B2B SaaS (0→1 platform builds, process automation)
+Skills: 0→1 product development, LLM/AI product, growth & retention funnels, platform engineering, SQL/BigQuery, cross-functional leadership
+
+Search comprehensively for ALL currently open Product Manager and Senior Product Manager roles in Bengaluru, Karnataka, India.
+Cast the widest possible net — search every source:
+
+1. Indian unicorns & large tech: Flipkart, Meesho, Swiggy, Zomato, PhonePe, Razorpay, CRED, Groww, Zepto, Ola, Paytm, Juspay, Dunzo, Rapido, Porter, Urban Company, Purplle, Licious, Ather Energy, Bounce
+2. Global tech with Bengaluru offices: Google, Amazon, Microsoft, Uber, LinkedIn, Atlassian, Adobe, Salesforce, SAP, Oracle, Stripe, Notion, Freshworks, Chargebee, Postman, BrowserStack, Darwinbox
+3. Series B+ Bengaluru startups: Fi Money, Jupiter, Slice, Navi, smallcase, Kuvera, INDmoney, M2P, Niyo, Hyperface, Jar, Setu, Signzy, Hasura, Whatfix, LeadSquared, Innovaccer, MediBuddy, Pristyn Care
+4. EdTech: BYJU's, Unacademy, PhysicsWallah, Vedantu, Scaler, upGrad, Skill-Lync, Masai School, Coding Ninjas
+5. Fintech & crypto: BharatPe, KreditBee, MoneyView, Freo, Perfios, Signzy, Open Financial
+6. Job boards (search all): LinkedIn Jobs, Naukri, Indeed India, Cutshort, Instahyre, Wellfound, Glassdoor, Google Jobs
+7. Direct company careers pages
+
+Return ONLY a valid JSON array (no markdown, no preamble) with this exact schema per job:
+[{
+  "company": "string",
+  "role": "string",
+  "level": "Product Manager or Senior Product Manager",
+  "location": "Bengaluru, KA",
+  "salary_band": "string like '60-90 LPA' or '40LPA+ (estimated)'",
+  "salary_confirmed": false,
+  "jd_url": "string URL — careers page preferred, job board as fallback",
+  "posted_date": "YYYY-MM-DD",
+  "source": "string e.g. 'LinkedIn' or 'Google Careers' or 'Naukri'",
+  "tags": ["2-4 domain tags from: AI/ML, Fintech, B2B SaaS, Consumer, EdTech, HealthTech, Growth, Data, Infra, Mobility, Gaming"],
+  "keyRequirements": ["4-6 key bullet points from the JD"],
+  "notes": "any noteworthy context about the role or company"
+}]
+
+Rules:
+- PM and Senior PM only — not APM, Group PM, Director, VP, or Staff
+- Bengaluru / Bangalore / Remote-India roles only
+- 40LPA+ realistic salary threshold
+- Return up to 30 roles
+- Prefer verified active listings over speculative ones
+- If salary unknown for a known top company: "40LPA+ (estimated)", salary_confirmed: false
+- Return ONLY the JSON array, nothing else`
+
+export async function discoverJobs(apiKey) {
+  if (!apiKey) throw new Error('API key not set. Add it in Settings.')
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 6000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: DISCOVER_PROMPT }],
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err?.error?.message || `API error ${response.status}`)
+  }
+
+  const data = await response.json()
+  const text = data.content
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('')
+
+  const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  const startIdx = clean.indexOf('[')
+  const endIdx = clean.lastIndexOf(']')
+  if (startIdx === -1 || endIdx === -1) throw new Error('No JSON array found in response')
+  const jobs = JSON.parse(clean.slice(startIdx, endIdx + 1))
+
+  return jobs.map(j => ({
+    ...j,
+    id: `disc-${j.company.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    status: 'Saved',
+    appliedDate: '',
+    resume: '',
+    coverLetter: '',
+    referralContact: '',
+    referralEmail: '',
+    negotiationNotes: '',
+    salaryOffered: '',
+    salaryTarget: '',
+    interviewRounds: [],
+    contacts: [],
+    resumeVersions: [],
+    learningTopics: (j.keyRequirements || []).slice(0, 3).map((req, i) => ({
+      id: `lt${i}`,
+      topic: req,
+      resource: '',
+      status: 'Not Started',
+    })),
+    notes: j.notes || '',
+    lastUpdated: new Date().toISOString().slice(0, 10),
+  }))
 }
 
 export function mergeJobs(existing, incoming) {

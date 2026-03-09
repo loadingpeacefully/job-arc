@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
-import { getDaysAgo } from '../utils/jobUtils'
 import { clearSession } from '../utils/auth'
 
-export default function Header({ tab, setTab, onAdd, onScan, scanning, lastScan, onLogout, onSettings }) {
-  const scanAge = lastScan ? getDaysAgo(lastScan.slice(0,10)) : null
+export default function Header({ tab, setTab, onAdd, onLogout, onSettings }) {
   const [extActive, setExtActive] = useState(false)
   useEffect(() => {
     const check = () => setExtActive(localStorage.getItem('job_arc_ext_heartbeat') === 'true')
@@ -57,29 +55,6 @@ export default function Header({ tab, setTab, onAdd, onScan, scanning, lastScan,
 
         {/* Right controls */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {lastScan && (
-            <div className="mono" style={{ fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              scan: {scanAge === 0 ? 'today' : `${scanAge}d ago`}
-            </div>
-          )}
-
-          <button
-            onClick={onScan}
-            disabled={scanning}
-            style={{
-              padding: '6px 14px',
-              border: '1px solid rgba(255,255,255,0.12)',
-              background: scanning ? 'rgba(255,255,255,0.03)' : 'rgba(57,255,20,0.05)',
-              color: scanning ? 'var(--muted)' : 'var(--amber)',
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
-              fontFamily: 'JetBrains Mono, monospace',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            {scanning ? <span className="spinner" style={{ display: 'inline-block' }}>↻</span> : '⟳'}
-            {scanning ? 'Scanning…' : 'Live Scan'}
-          </button>
-
           <button
             onClick={onAdd}
             style={{

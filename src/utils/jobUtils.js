@@ -21,6 +21,8 @@ export function newJob(overrides = {}) {
     salaryOffered: '',
     salaryTarget: '',
     interviewRounds: [],
+    contacts: [],
+    resumeVersions: [],
     keyRequirements: [],
     learningTopics: [],
     notes: '',
@@ -29,6 +31,21 @@ export function newJob(overrides = {}) {
     canonicalUrl: '',
     verifiedAt: '',
     ...overrides,
+  }
+}
+
+export function newContact() {
+  return {
+    id: `contact-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+    name: '',
+    linkedinUrl: '',
+    role: '',
+    status: 'Not reached',
+    connectionType: 'Cold',
+    resumeVersionId: '',
+    resumeSharedDate: '',
+    lastContactDate: '',
+    notes: '',
   }
 }
 

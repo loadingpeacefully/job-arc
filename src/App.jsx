@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { loadJobs, upsertJob, deleteJobDB, upsertManyJobs, loadSettings, saveSettings, loadLastScan, saveLastScan, exportData, importData } from './utils/storage'
-import { runLiveScan, mergeJobs, verifyJob, generateResume } from './utils/claudeApi'
+import { runLiveScan, mergeJobs, verifyJob, generateResume, discoverJobs } from './utils/claudeApi'
 import PROFILE_TEXT from '../Suneet_Jagdev_Profile.md?raw'
 import { newJob } from './utils/jobUtils'
 import Header from './components/Header'
@@ -8,7 +8,7 @@ import BoardView from './components/BoardView'
 import PipelineView from './components/PipelineView'
 import AnalyticsView from './components/AnalyticsView'
 import DailyView from './components/DailyView'
-import DetailPanel from './components/DetailPanel'
+import JobDetailView from './components/JobDetailView'
 import AddJobModal from './components/AddJobModal'
 import SettingsModal from './components/SettingsModal'
 import ScanBanner from './components/ScanBanner'
@@ -39,7 +39,8 @@ export default function App({ onLogout }) {
   const [jobs, setJobs] = useState([])
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('board')
+  const [tab, setTab] = useState('daily')
+  const [view, setView] = useState('list') // 'list' | 'detail'
   const [selectedId, setSelectedId] = useState(null)
   const [filterStatus, setFilterStatus] = useState('All')
   const [showAdd, setShowAdd] = useState(false)
@@ -218,6 +219,12 @@ export default function App({ onLogout }) {
     }
   }, [jobs, settings.apiKey, updateJob])
 
+  const handleSaveDiscovered = useCallback((job) => {
+    upsertJob(job)
+    setJobs(prev => [job, ...prev])
+    setScanMsg({ type: 'success', text: `✅ "${job.role}" at ${job.company} saved to tracker.` })
+  }, [])
+
   const handleGenerateResume = useCallback(async (jobId) => {
     const job = jobs.find(j => j.id === jobId)
     if (!job) return
@@ -229,8 +236,16 @@ export default function App({ onLogout }) {
     setScanMsg({ type: 'info', text: `Generating tailored resume for "${job.company} — ${job.role}"…` })
     try {
       const html = await generateResume(settings.apiKey, job, PROFILE_TEXT)
-      updateJob(jobId, { resumeHtml: html })
-      setScanMsg({ type: 'success', text: `✅ Resume generated for ${job.company}. Download it from the Resume tab.` })
+      const existingVersions = job.resumeVersions || []
+      const versionNum = existingVersions.length + 1
+      const newVersion = {
+        id: `rv-${Date.now()}`,
+        label: `v${versionNum} — ${new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
+        html,
+        createdAt: new Date().toISOString(),
+      }
+      updateJob(jobId, { resumeHtml: html, resumeVersions: [...existingVersions, newVersion] })
+      setScanMsg({ type: 'success', text: `✅ Resume v${versionNum} saved for ${job.company}.` })
     } catch (err) {
       setScanMsg({ type: 'error', text: `Resume generation failed: ${err.message}` })
     } finally {
@@ -261,6 +276,15 @@ export default function App({ onLogout }) {
     filterStatus === 'All' || j.status === filterStatus
   )
 
+  // Open detail page for a job — defined before early return so hooks order is stable
+  const openDetail = useCallback((id) => { setSelectedId(id); setView('detail') }, [])
+  const closeDetail = useCallback(() => { setView('list'); setSelectedId(null) }, [])
+
+  // Guard: if detail view has no matching job (e.g. after HMR), fall back to list
+  useEffect(() => {
+    if (view === 'detail' && !loading && !selectedJob) closeDetail()
+  }, [view, loading, selectedJob, closeDetail])
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -272,69 +296,71 @@ export default function App({ onLogout }) {
   return (
     <div className="grid-bg" style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <div className="scanline" />
-      <Header
-        tab={tab} setTab={setTab}
-        onAdd={() => setShowAdd(true)}
-        onSettings={() => setShowSettings(true)}
-        onScan={handleScan}
-        scanning={scanning}
-        lastScan={lastScan}
-        jobCount={jobs.length}
-        onLogout={onLogout}
-      />
 
-      {scanMsg && (
-        <ScanBanner msg={scanMsg} onClose={() => setScanMsg(null)} />
+      {/* Full-page job detail view */}
+      {view === 'detail' && selectedJob && (
+        <JobDetailView
+          job={selectedJob}
+          onUpdate={(u) => updateJob(selectedJob.id, u)}
+          onDelete={() => { deleteJob(selectedJob.id); closeDetail() }}
+          onBack={closeDetail}
+          onVerify={handleVerify}
+          verifying={verifyingId === selectedJob.id}
+          onGenerateResume={handleGenerateResume}
+          generatingResume={generatingResumeId === selectedJob.id}
+        />
       )}
 
-      <div style={{ flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto', padding: '20px 24px 40px', display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {tab === 'board' && (
-            <BoardView
-              jobs={filteredJobs}
-              allJobs={jobs}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              filterStatus={filterStatus}
-              onFilterStatus={setFilterStatus}
-              onAdd={() => setShowAdd(true)}
-            />
-          )}
-          {tab === 'pipeline' && (
-            <PipelineView
-              jobs={jobs}
-              onSelect={(id) => { setSelectedId(id); setTab('board') }}
-              onStatusChange={(id, status) => updateJob(id, { status })}
-            />
-          )}
-          {tab === 'analytics' && (
-            <AnalyticsView jobs={jobs} />
-          )}
-          {tab === 'daily' && (
-            <DailyView
-              jobs={jobs}
-              onVerify={handleVerify}
-              verifyingId={verifyingId}
-              onSelect={(id) => { setSelectedId(id); setTab('board') }}
-            />
-          )}
-        </div>
+      {/* List view (board, pipeline, analytics, daily) */}
+      {view === 'list' && (
+        <>
+          <Header
+            tab={tab} setTab={setTab}
+            onAdd={() => setShowAdd(true)}
+            onSettings={() => setShowSettings(true)}
+            onLogout={onLogout}
+          />
 
-        {selectedJob && tab === 'board' && (
-          <div className="animate-slide" style={{ width: 460, flexShrink: 0 }}>
-            <DetailPanel
-              job={selectedJob}
-              onUpdate={(u) => updateJob(selectedJob.id, u)}
-              onDelete={() => deleteJob(selectedJob.id)}
-              onClose={() => setSelectedId(null)}
-              onVerify={handleVerify}
-              verifying={verifyingId === selectedJob.id}
-              onGenerateResume={handleGenerateResume}
-              generatingResume={generatingResumeId === selectedJob.id}
-            />
+          {scanMsg && (
+            <ScanBanner msg={scanMsg} onClose={() => setScanMsg(null)} />
+          )}
+
+          <div style={{ flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto', padding: '20px 24px 40px' }}>
+            {tab === 'board' && (
+              <BoardView
+                jobs={filteredJobs}
+                allJobs={jobs}
+                selectedId={selectedId}
+                onSelect={openDetail}
+                filterStatus={filterStatus}
+                onFilterStatus={setFilterStatus}
+                onAdd={() => setShowAdd(true)}
+              />
+            )}
+            {tab === 'pipeline' && (
+              <PipelineView
+                jobs={jobs}
+                onSelect={openDetail}
+                onStatusChange={(id, status) => updateJob(id, { status })}
+              />
+            )}
+            {tab === 'analytics' && (
+              <AnalyticsView jobs={jobs} />
+            )}
+            {tab === 'daily' && (
+              <DailyView
+                jobs={jobs}
+                onVerify={handleVerify}
+                verifyingId={verifyingId}
+                onSelect={openDetail}
+                settings={settings}
+                onSaveDiscovered={handleSaveDiscovered}
+                discoverJobs={discoverJobs}
+              />
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {showAdd && <AddJobModal onAdd={addJob} onClose={() => setShowAdd(false)} />}
       {showSettings && (
