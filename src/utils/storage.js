@@ -33,6 +33,7 @@ export async function upsertManyJobs(jobs) {
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS = { apiKey: '', userName: '', targetRole: 'Senior Product Manager', minSalary: 40 }
+const API_KEY_STORAGE_KEY = 'jobarc_api_key'
 
 export async function loadSettings() {
   const { data } = await supabase
@@ -40,13 +41,20 @@ export async function loadSettings() {
     .select('data')
     .eq('id', 'singleton')
     .single()
-  return data?.data ?? DEFAULT_SETTINGS
+  const remote = data?.data ?? DEFAULT_SETTINGS
+  // apiKey lives in localStorage only — never synced to Supabase
+  return { ...remote, apiKey: localStorage.getItem(API_KEY_STORAGE_KEY) || '' }
 }
 
 export async function saveSettings(settings) {
+  // Save apiKey locally, everything else to Supabase
+  if (settings.apiKey !== undefined) {
+    localStorage.setItem(API_KEY_STORAGE_KEY, settings.apiKey)
+  }
+  const { apiKey: _drop, ...remoteSettings } = settings
   await supabase.from('settings').upsert({
     id: 'singleton',
-    data: settings,
+    data: remoteSettings,
     updated_at: new Date().toISOString(),
   })
 }
