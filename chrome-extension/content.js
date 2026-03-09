@@ -237,7 +237,19 @@
       const triggerEl = document.querySelector('#job-details, .jobs-description, [class*="jobs-description"], [class*="job-details"]')
       if (triggerEl) triggerEl.scrollIntoView({ behavior: 'instant', block: 'start' })
 
-      // Wait 2s for LinkedIn to render the lazy-loaded description, then extract and send
+      // Click "Show more" to expand collapsed job descriptions
+      setTimeout(() => {
+        const showMoreBtn = document.querySelector([
+          '.jobs-description__footer-button',
+          '[class*="show-more-less-html__button--more"]',
+          '.show-more-less-html__button',
+          'button[aria-label*="show more"]',
+          'button[aria-label*="See more"]',
+        ].join(', '))
+        if (showMoreBtn) showMoreBtn.click()
+      }, 800)
+
+      // Wait 2.5s total (extra 500ms for expand animation) then extract and send
       setTimeout(() => {
         const extracted = extractJob()
         chrome.runtime.sendMessage({ type: 'ADD_JOB', job: extracted }, (response) => {
@@ -264,7 +276,7 @@
             }, 3000)
           }
         })
-      }, 2000)
+      }, 2500)
     })
 
     return btn
