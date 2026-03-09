@@ -53,14 +53,14 @@
     let description = ''
     let description_html = ''
     const descSelectors = [
-      '.jobs-description',                          // py-linkedin-jobs-scraper primary
+      '.jobs-description',
       '#job-details',
-      '.jobs-description__content',
-      '.jobs-description-content__text',
-      '.jobs-description-content__text--stretch',
+      '[class*="jobs-description__content"]',
       '[class*="jobs-description-content"]',
       '[class*="description__text"]',
-      'article[class*="jobs-description"]',
+      '.jobs-box__html-content',
+      '[class*="jobs-box"]',
+      'article[class*="jobs"]',
     ]
     for (const sel of descSelectors) {
       const el = document.querySelector(sel)
@@ -70,13 +70,26 @@
         break
       }
     }
-    // Last resort: find the "About the job" heading and grab its parent section
+    // Last resort: find heading then grab parent section
     if (!description) {
       const headings = [...document.querySelectorAll('h2, h3')]
       const aboutHeading = headings.find(h => /about the job|job description|about this role/i.test(h.innerText))
       if (aboutHeading) {
         const section = aboutHeading.closest('section') || aboutHeading.parentElement
         if (section) description = section.innerText.replace(aboutHeading.innerText, '').trim()
+      }
+    }
+    // Nuclear fallback: find the smallest div/section/article with 300-20000 chars that isn't nav
+    if (!description) {
+      const candidate = [...document.querySelectorAll('div, section, article')]
+        .filter(el => {
+          const t = (el.innerText || '').trim()
+          return t.length >= 300 && t.length <= 20000 && !el.querySelector('nav, header')
+        })
+        .sort((a, b) => a.innerText.length - b.innerText.length)[0]
+      if (candidate) {
+        description = candidate.innerText.trim()
+        description_html = candidate.innerHTML
       }
     }
 
@@ -177,11 +190,17 @@
         return
       }
 
-      btn.innerText = '⟳ Adding…'
+      btn.innerText = '⟳ Loading JD…'
       btn.disabled = true
 
-      const sendJob = (j) => {
-        chrome.runtime.sendMessage({ type: 'ADD_JOB', job: j }, (response) => {
+      // Scroll to the description section to force LinkedIn to render lazy-loaded content
+      const triggerEl = document.querySelector('#job-details, .jobs-description, [class*="jobs-description"], [class*="job-details"]')
+      if (triggerEl) triggerEl.scrollIntoView({ behavior: 'instant', block: 'start' })
+
+      // Wait 2s for LinkedIn to render the lazy-loaded description, then extract and send
+      setTimeout(() => {
+        const extracted = extractJob()
+        chrome.runtime.sendMessage({ type: 'ADD_JOB', job: extracted }, (response) => {
           if (response && response.ok) {
             btn.innerText = '✓ Added!'
             btn.style.borderColor = '#39FF14'
@@ -205,18 +224,7 @@
             }, 3000)
           }
         })
-      }
-
-      // If description missing, wait 1.5s for LinkedIn lazy-load then retry extraction
-      if (!job.description) {
-        btn.innerText = '⟳ Loading JD…'
-        setTimeout(() => {
-          const retried = extractJob()
-          sendJob(retried)
-        }, 1500)
-      } else {
-        sendJob(job)
-      }
+      }, 2000)
     })
 
     return btn
